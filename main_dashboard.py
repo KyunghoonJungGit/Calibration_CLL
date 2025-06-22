@@ -1,5 +1,5 @@
 # ======================================================================
-#  main_dashboard.py   (FULL / REPLACEMENT  – Echo 지원 포함)
+#  main_dashboard.py   (FULL / REPLACEMENT  – Ramsey 지원 포함)
 # ======================================================================
 import dash
 from dash import dcc, html, Input, Output, State
@@ -16,7 +16,8 @@ from resonator_dashboard  import create_res_layout,   register_res_callbacks
 from qspec_dashboard      import create_qspec_layout, register_qspec_callbacks
 from power_rabi_dashboard import create_prabi_layout, register_prabi_callbacks
 from t1_dashboard         import create_t1_layout,    register_t1_callbacks
-from echo_dashboard       import create_echo_layout,  register_echo_callbacks   # ★ NEW
+from echo_dashboard       import create_echo_layout,  register_echo_callbacks
+from ramsey_dashboard     import create_ramsey_layout, register_ramsey_callbacks  # ★ NEW
 
 # ────────────────────────────────────────────────────────────────────
 # 앱 인스턴스 & 전역 설정
@@ -56,11 +57,17 @@ experiment_modules = {
         title="T1 Relaxation",
         patterns=["t1", "t1_relax", "relaxation"],
     ),
-    "echo": dict(                                                        # ★ NEW
+    "echo": dict(
         layout_func=create_echo_layout,
         register_func=register_echo_callbacks,
         title="T2 Echo",
         patterns=["echo", "t2echo", "t2_echo", "t2e"],
+    ),
+    "ramsey": dict(                                                         # ★ NEW
+        layout_func=create_ramsey_layout,
+        register_func=register_ramsey_callbacks,
+        title="Ramsey (T2*)",
+        patterns=["ramsey", "t2star", "t2*", "ramsey_exp"],
     ),
 }
 
@@ -69,8 +76,8 @@ experiment_modules = {
 # ────────────────────────────────────────────────────────────────────
 def find_experiments(base_path: str):
     """
-    날짜폴더: YYYY_MM_DD 또는 YYYY-MM-DD
-    실험폴더: '#번호_…<keyword>…_<HHMMSS>'
+    날짜 폴더: YYYY_MM_DD 또는 YYYY-MM-DD
+    실험 폴더: '#번호_…<keyword>…_<HHMMSS>'
     """
     exps: dict[str, list] = {}
     base_path = os.path.normpath(base_path)
@@ -270,7 +277,8 @@ register_res_callbacks(app)
 register_qspec_callbacks(app)
 register_prabi_callbacks(app)
 register_t1_callbacks(app)
-register_echo_callbacks(app)         # ★ NEW
+register_echo_callbacks(app)
+register_ramsey_callbacks(app)         # ★ NEW
 
 # ────────────────────────────────────────────────────────────────────
 # 4. run
