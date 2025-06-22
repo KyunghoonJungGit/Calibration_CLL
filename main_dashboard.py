@@ -1,5 +1,5 @@
 # ======================================================================
-#  main_dashboard.py   (FULL / REPLACEMENT  – IQ 모듈 포함)
+#  main_dashboard.py   (FULL / REPLACEMENT  – DRAG 모듈 포함)
 # ======================================================================
 import dash
 from dash import dcc, html, Input, Output, State
@@ -18,8 +18,9 @@ from power_rabi_dashboard import create_prabi_layout, register_prabi_callbacks
 from t1_dashboard         import create_t1_layout,    register_t1_callbacks
 from echo_dashboard       import create_echo_layout,  register_echo_callbacks
 from ramsey_dashboard     import create_ramsey_layout, register_ramsey_callbacks
-from iq_dashboard         import create_iq_layout,    register_iq_callbacks     
-from readout_power_opt_dashboard import create_rpo_layout, register_rpo_callbacks   
+from iq_dashboard         import create_iq_layout,    register_iq_callbacks
+from readout_power_opt_dashboard import create_rpo_layout, register_rpo_callbacks
+from drag_dashboard       import create_drag_layout,   register_drag_callbacks   # ★ NEW ★
 
 # ────────────────────────────────────────────────────────────────────
 # 앱 인스턴스 & 전역 설정
@@ -71,24 +72,30 @@ experiment_modules = {
         title="Ramsey (T2*)",
         patterns=["ramsey", "t2star", "t2*", "ramsey_exp"],
     ),
-    "iq": dict(                                                             
+    "iq": dict(
         layout_func=create_iq_layout,
         register_func=register_iq_callbacks,
         title="IQ Discrimination",
         patterns=["iq", "iq_blobs", "iq_readout"],
     ),
-    "rpo": dict(                                     
+    "rpo": dict(
         layout_func=create_rpo_layout,
         register_func=register_rpo_callbacks,
         title="Readout Power Opt.",
         patterns=["readout_power", "power_opt", "readout_power_optimization",
                   "rpo", "readout‑power"],
     ),
+    "drag": dict(                               # ★ NEW ★
+        layout_func=create_drag_layout,
+        register_func=register_drag_callbacks,
+        title="DRAG Calibration",
+        patterns=["drag", "drag_cal", "dragcal", "drag_calibration"],
+    ),
 }
 
 # ────────────────────────────────────────────────────────────────────
 # 1. 실험 폴더 스캔
-#   (함수 내용 변경 없음 – experiment_modules 만 활용)
+#   (내용 동일 – experiment_modules dict 자동 사용)
 # ────────────────────────────────────────────────────────────────────
 def find_experiments(base_path: str):
     """
@@ -154,6 +161,7 @@ def find_experiments(base_path: str):
         exps[typ].sort(key=lambda e: e["timestamp"], reverse=True)
     return exps
 
+
 # ────────────────────────────────────────────────────────────────────
 # 2. Layout
 # ────────────────────────────────────────────────────────────────────
@@ -208,7 +216,7 @@ app.layout = dbc.Container(
 )
 
 # ────────────────────────────────────────────────────────────────────
-# 3. Callbacks  (내용 동일)
+# 3. Callbacks  (기존과 동일)
 # ────────────────────────────────────────────────────────────────────
 @app.callback(
     [Output("alert-container", "children"), Output("current-experiments", "data")],
@@ -285,6 +293,7 @@ def display_experiment(path, typ):
         return html.Div("실험을 선택하세요.", className="text-center text-muted mt-5")
     return experiment_modules[typ]["layout_func"](path)
 
+
 # ────────────────────────────────────────────────────────────────────
 # 각 모듈 콜백 등록
 # ────────────────────────────────────────────────────────────────────
@@ -296,7 +305,9 @@ register_t1_callbacks(app)
 register_echo_callbacks(app)
 register_ramsey_callbacks(app)
 register_iq_callbacks(app)
-register_rpo_callbacks(app)  
+register_rpo_callbacks(app)
+register_drag_callbacks(app)   # ★ NEW ★
+
 
 # ────────────────────────────────────────────────────────────────────
 # 4. run
