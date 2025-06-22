@@ -18,7 +18,8 @@ from power_rabi_dashboard import create_prabi_layout, register_prabi_callbacks
 from t1_dashboard         import create_t1_layout,    register_t1_callbacks
 from echo_dashboard       import create_echo_layout,  register_echo_callbacks
 from ramsey_dashboard     import create_ramsey_layout, register_ramsey_callbacks
-from iq_dashboard         import create_iq_layout,    register_iq_callbacks      # ★ NEW (IQ)
+from iq_dashboard         import create_iq_layout,    register_iq_callbacks     
+from readout_power_dashboard import create_rpo_layout, register_rpo_callbacks   
 
 # ────────────────────────────────────────────────────────────────────
 # 앱 인스턴스 & 전역 설정
@@ -70,11 +71,18 @@ experiment_modules = {
         title="Ramsey (T2*)",
         patterns=["ramsey", "t2star", "t2*", "ramsey_exp"],
     ),
-    "iq": dict(                                                             # ★ NEW (IQ)
+    "iq": dict(                                                             
         layout_func=create_iq_layout,
         register_func=register_iq_callbacks,
         title="IQ Discrimination",
-        patterns=["iq", "iq_blobs", "readout", "iq_readout"],
+        patterns=["iq", "iq_blobs", "iq_readout"],
+    ),
+    "rpo": dict(                                     
+        layout_func=create_rpo_layout,
+        register_func=register_rpo_callbacks,
+        title="Readout Power Opt.",
+        patterns=["readout_power", "power_opt", "readout_power_optimization",
+                  "rpo", "readout‑power"],
     ),
 }
 
@@ -287,7 +295,9 @@ register_prabi_callbacks(app)
 register_t1_callbacks(app)
 register_echo_callbacks(app)
 register_ramsey_callbacks(app)
-register_iq_callbacks(app)        # ★ NEW (IQ)
+register_iq_callbacks(app)
+register_iq_callbacks(app)
+register_rpo_callbacks(app)  
 
 # ────────────────────────────────────────────────────────────────────
 # 4. run
