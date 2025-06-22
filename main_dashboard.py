@@ -1,5 +1,5 @@
 # ======================================================================
-#  main_dashboard.py   (FULL / REPLACEMENT  – Ramsey 지원 포함)
+#  main_dashboard.py   (FULL / REPLACEMENT  – IQ 모듈 포함)
 # ======================================================================
 import dash
 from dash import dcc, html, Input, Output, State
@@ -17,7 +17,8 @@ from qspec_dashboard      import create_qspec_layout, register_qspec_callbacks
 from power_rabi_dashboard import create_prabi_layout, register_prabi_callbacks
 from t1_dashboard         import create_t1_layout,    register_t1_callbacks
 from echo_dashboard       import create_echo_layout,  register_echo_callbacks
-from ramsey_dashboard     import create_ramsey_layout, register_ramsey_callbacks  # ★ NEW
+from ramsey_dashboard     import create_ramsey_layout, register_ramsey_callbacks
+from iq_dashboard         import create_iq_layout,    register_iq_callbacks      # ★ NEW (IQ)
 
 # ────────────────────────────────────────────────────────────────────
 # 앱 인스턴스 & 전역 설정
@@ -63,16 +64,23 @@ experiment_modules = {
         title="T2 Echo",
         patterns=["echo", "t2echo", "t2_echo", "t2e"],
     ),
-    "ramsey": dict(                                                         # ★ NEW
+    "ramsey": dict(
         layout_func=create_ramsey_layout,
         register_func=register_ramsey_callbacks,
         title="Ramsey (T2*)",
         patterns=["ramsey", "t2star", "t2*", "ramsey_exp"],
     ),
+    "iq": dict(                                                             # ★ NEW (IQ)
+        layout_func=create_iq_layout,
+        register_func=register_iq_callbacks,
+        title="IQ Discrimination",
+        patterns=["iq", "iq_blobs", "readout", "iq_readout"],
+    ),
 }
 
 # ────────────────────────────────────────────────────────────────────
 # 1. 실험 폴더 스캔
+#   (함수 내용 변경 없음 – experiment_modules 만 활용)
 # ────────────────────────────────────────────────────────────────────
 def find_experiments(base_path: str):
     """
@@ -192,7 +200,7 @@ app.layout = dbc.Container(
 )
 
 # ────────────────────────────────────────────────────────────────────
-# 3. Callbacks
+# 3. Callbacks  (내용 동일)
 # ────────────────────────────────────────────────────────────────────
 @app.callback(
     [Output("alert-container", "children"), Output("current-experiments", "data")],
@@ -278,11 +286,12 @@ register_qspec_callbacks(app)
 register_prabi_callbacks(app)
 register_t1_callbacks(app)
 register_echo_callbacks(app)
-register_ramsey_callbacks(app)         # ★ NEW
+register_ramsey_callbacks(app)
+register_iq_callbacks(app)        # ★ NEW (IQ)
 
 # ────────────────────────────────────────────────────────────────────
 # 4. run
 # ────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("[main] first scan:", find_experiments(EXPERIMENT_BASE_PATH))
-    app.run(debug=True, port=8099)
+    app.run(debug=True, port=8071)

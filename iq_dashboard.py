@@ -1,0 +1,365 @@
+# ======================================================================
+#  iq_dashboard.py   (FULL / NEW FILE)      v2025‑06‑22 p1
+# ======================================================================
+"""
+Dash module for IQ‑discrimination / Readout‑fidelity experiments
+(수정: 2‑col 레이아웃 + 페이지네이션 + 폰트/크기 확대)
+
+Author : (작성자 이름)
+Date   : 2025‑06‑22
+"""
+
+from __future__ import annotations
+import dash
+from dash import dcc, html, Input, Output, State, MATCH
+import dash_bootstrap_components as dbc
+import plotly.graph_objs as go
+import plotly.subplots as subplots
+import xarray as xr
+import numpy as np
+import json, os
+from pathlib import Path
+
+# ────────────────────────────────────────────────────────────────────
+# 0. 글로벌 설정 (행·열, 페이지네이션, 크기)  ────────────
+# ────────────────────────────────────────────────────────────────────
+N_COLS             = 2      # 모든 뷰 공통 열 수
+PER_PAGE           = 8      # 한 페이지당 최대 큐빗 수 (2열 × 4행)
+PLOT_HEIGHT_UNIT = {        # 행 하나당 높이 [px]  ### TUNE HERE
+    "conf": 260,            # confusion‑matrix
+    "hist": 360,            # histogram
+    "blob": 360,            # scatter (blob)
+}
+SUBPLOT_VSPACE     = 0.12   #   │ 세로 간격        ### TUNE HERE
+SUBPLOT_HSPACE     = 0.07   #   └─가로 간격
+
+# ────────────────────────────────────────────────────────────────────
+# 공용 : 안전한 xarray.open_dataset
+# ────────────────────────────────────────────────────────────────────
+def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
+    last_err = None
+    for eng in engines:
+        try:
+            return xr.open_dataset(path, engine=eng)
+        except Exception as e:
+            last_err = e
+    raise last_err
+
+# ────────────────────────────────────────────────────────────────────
+# 1. 데이터 로더
+# ────────────────────────────────────────────────────────────────────
+def load_iq_data(folder: str | Path) -> dict | None:
+    """
+    반환 dict (key)
+      qubits, n, ds_raw, ds_fit,
+      success, readout_fidelity,
+      gg, ge, eg, ee,
+      Ig, Ie, Qg, Qe,
+      rus_thr, ge_thr
+    """
+    folder = os.path.normpath(str(folder))
+    paths = {
+        "ds_raw":  os.path.join(folder, "ds_raw.h5"),
+        "ds_fit":  os.path.join(folder, "ds_fit.h5"),
+        "data_js": os.path.join(folder, "data.json"),
+        "node_js": os.path.join(folder, "node.json"),
+    }
+    if not all(os.path.exists(p) for p in paths.values()):
+        print(f"[load_iq_data] missing files in {folder}")
+        return None
+
+    ds_raw = open_xr_dataset(paths["ds_raw"])
+    ds_fit = open_xr_dataset(paths["ds_fit"])
+    with open(paths["data_js"], "r", encoding="utf-8") as f:
+        data_json = json.load(f)
+    with open(paths["node_js"], "r", encoding="utf-8") as f:
+        node_json = json.load(f)
+
+    qubits   = ds_fit["qubit"].values if "qubit" in ds_fit else ds_raw["qubit"].values
+    n_q      = len(qubits)
+    success  = ds_fit["success"].values if "success" in ds_fit else np.full(n_q, True)
+    fidelity = ds_fit["readout_fidelity"].values if "readout_fidelity" in ds_fit else np.full(n_q, np.nan)
+
+    gg = ds_fit["gg"].values; ge = ds_fit["ge"].values
+    eg = ds_fit["eg"].values; ee = ds_fit["ee"].values
+
+    Ig = ds_fit["Ig_rot"].values * 1e3
+    Ie = ds_fit["Ie_rot"].values * 1e3
+    Qg = ds_fit["Qg_rot"].values * 1e3 if "Qg_rot" in ds_fit else np.zeros_like(Ig)
+    Qe = ds_fit["Qe_rot"].values * 1e3 if "Qe_rot" in ds_fit else np.zeros_like(Ie)
+
+    rus_thr = ds_fit["rus_threshold"].values * 1e3
+    ge_thr  = ds_fit["ge_threshold"].values * 1e3
+
+    return dict(
+        qubits=qubits, n=n_q,
+        ds_raw=ds_raw, ds_fit=ds_fit,
+        success=success, readout_fidelity=fidelity,
+        gg=gg, ge=ge, eg=eg, ee=ee,
+        Ig=Ig, Ie=Ie, Qg=Qg, Qe=Qe,
+        rus_thr=rus_thr, ge_thr=ge_thr,
+    )
+
+# ────────────────────────────────────────────────────────────────────
+# 1‑B. 페이지네이션을 위한 데이터 슬라이서
+# ────────────────────────────────────────────────────────────────────
+def slice_data_for_page(data: dict, page: int, per_page: int = PER_PAGE) -> dict:
+    """요청한 page(1‑base)에 해당하는 인덱스 부분만 잘라 새 dict 반환"""
+    start = (page - 1) * per_page
+    stop  = min(page * per_page, data["n"])
+    sel   = slice(start, stop)
+    sliced = {k: (v[sel] if isinstance(v, np.ndarray) else v)
+              for k, v in data.items()
+              if isinstance(v, np.ndarray)}
+    # 비‑array 항목은 그대로
+    for k, v in data.items():
+        if k not in sliced:
+            sliced[k] = v
+    sliced["qubits"] = data["qubits"][sel]
+    sliced["n"]      = len(sliced["qubits"])
+    return sliced
+
+# ────────────────────────────────────────────────────────────────────
+# 2‑A. Confusion‑matrix plot  (2×N, 숫자 폰트 확대)
+# ────────────────────────────────────────────────────────────────────
+def plotconfusion(data: dict) -> go.Figure:
+    qbs = data["qubits"]; n_q = data["n"]
+    n_rows = int(np.ceil(n_q / N_COLS))
+    fig = subplots.make_subplots(
+        rows=n_rows, cols=N_COLS,
+        subplot_titles=[str(q) for q in qbs],
+        vertical_spacing=SUBPLOT_VSPACE, horizontal_spacing=SUBPLOT_HSPACE,
+    )
+    for idx, q in enumerate(qbs):
+        r, c = divmod(idx, N_COLS); row, col = r + 1, c + 1
+        z = np.array([[data["gg"][idx], data["ge"][idx]],
+                      [data["eg"][idx], data["ee"][idx]]])
+        txt = np.vectorize(lambda x: f"{x*100:.1f}%")(z)
+        fig.add_trace(
+            go.Heatmap(
+                z=z, text=txt, texttemplate="%{text}",
+                textfont={"size": 18},                 # 숫자 폰트 확대
+                colorscale="Viridis", zmin=0, zmax=1,
+                showscale=(idx == 0), coloraxis="coloraxis"),
+            row=row, col=col,
+        )
+        fig.update_xaxes(showticklabels=False, title_text="Measured" if row == n_rows else None,
+                         row=row, col=col)
+        fig.update_yaxes(showticklabels=False, title_text="Prepared" if col == 1 else None,
+                         row=row, col=col)
+
+    fig.update_layout(
+        coloraxis=dict(colorbar=dict(title="Prob.")),
+        title="IQ Readout – Confusion Matrix",
+        height=PLOT_HEIGHT_UNIT["conf"] * n_rows,   # 높이 확대
+        template="plotly_white",
+    )
+    return fig
+
+# ────────────────────────────────────────────────────────────────────
+# 2‑B. Histogram plot
+# ────────────────────────────────────────────────────────────────────
+def plothistogram(data: dict) -> go.Figure:
+    qbs = data["qubits"]; n_q = data["n"]
+    Ig, Ie = data["Ig"], data["Ie"]
+    rus, ge_thr = data["rus_thr"], data["ge_thr"]
+    n_rows = int(np.ceil(n_q / N_COLS))
+    fig = subplots.make_subplots(
+        rows=n_rows, cols=N_COLS,
+        subplot_titles=[str(q) for q in qbs],
+        vertical_spacing=SUBPLOT_VSPACE, horizontal_spacing=SUBPLOT_HSPACE,
+    )
+    for idx, q in enumerate(qbs):
+        r, c = divmod(idx, N_COLS); row, col = r + 1, c + 1
+        bins = np.linspace(min(Ig[idx].min(), Ie[idx].min()),
+                           max(Ig[idx].max(), Ie[idx].max()), 90)
+        fig.add_trace(go.Histogram(
+            x=Ig[idx], nbinsx=len(bins)-1, name="|g⟩" if idx == 0 else None,
+            marker_color="skyblue", opacity=0.7, showlegend=(idx == 0)),
+            row=row, col=col)
+        fig.add_trace(go.Histogram(
+            x=Ie[idx], nbinsx=len(bins)-1, name="|e⟩" if idx == 0 else None,
+            marker_color="lightsalmon", opacity=0.7, showlegend=(idx == 0)),
+            row=row, col=col)
+        fig.add_vline(x=rus[idx], line=dict(color="black", dash="dash"), row=row, col=col)
+        fig.add_vline(x=ge_thr[idx], line=dict(color="red",   dash="dash"), row=row, col=col)
+        if row == n_rows: fig.update_xaxes(title_text="I‑rot [mV]", row=row, col=col)
+        if col == 1:      fig.update_yaxes(title_text="Counts",     row=row, col=col)
+
+    fig.update_layout(
+        barmode="overlay",
+        title="IQ Readout – Rotated‑I Histograms",
+        height=PLOT_HEIGHT_UNIT["hist"] * n_rows,
+        template="plotly_white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    return fig
+
+# ────────────────────────────────────────────────────────────────────
+# 2‑C. Scatter (blob) plot
+# ────────────────────────────────────────────────────────────────────
+def plotblob(data: dict) -> go.Figure:
+    qbs = data["qubits"]; n_q = data["n"]
+    Ig, Ie, Qg, Qe = data["Ig"], data["Ie"], data["Qg"], data["Qe"]
+    rus, ge_thr = data["rus_thr"], data["ge_thr"]
+    n_rows = int(np.ceil(n_q / N_COLS))
+    fig = subplots.make_subplots(
+        rows=n_rows, cols=N_COLS,
+        subplot_titles=[str(q) for q in qbs],
+        vertical_spacing=SUBPLOT_VSPACE, horizontal_spacing=SUBPLOT_HSPACE,
+    )
+    for idx, q in enumerate(qbs):
+        r, c = divmod(idx, N_COLS); row, col = r + 1, c + 1
+        fig.add_trace(go.Scatter(
+            x=Ig[idx], y=Qg[idx], mode="markers",
+            marker=dict(color="skyblue", size=4, opacity=0.3),
+            name="|g⟩" if idx == 0 else None, showlegend=(idx == 0)),
+            row=row, col=col)
+        fig.add_trace(go.Scatter(
+            x=Ie[idx], y=Qe[idx], mode="markers",
+            marker=dict(color="lightsalmon", size=4, opacity=0.3),
+            name="|e⟩" if idx == 0 else None, showlegend=(idx == 0)),
+            row=row, col=col)
+        fig.add_vline(x=rus[idx], line=dict(color="black", dash="dash"), row=row, col=col)
+        fig.add_vline(x=ge_thr[idx], line=dict(color="red",   dash="dash"), row=row, col=col)
+        fig.update_yaxes(scaleanchor=f"x{idx+1}", scaleratio=1, row=row, col=col)
+        if row == n_rows: fig.update_xaxes(title_text="I‑rot [mV]", row=row, col=col)
+        if col == 1:      fig.update_yaxes(title_text="Q‑rot [mV]", row=row, col=col)
+
+    fig.update_layout(
+        title="IQ Readout – Rotated‑IQ Blob",
+        height=PLOT_HEIGHT_UNIT["blob"] * n_rows,
+        template="plotly_white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    return fig
+
+# ────────────────────────────────────────────────────────────────────
+# 2. Plot wrapper (mode + page)
+# ────────────────────────────────────────────────────────────────────
+def create_iq_plot(data: dict, mode: str, page: int = 1) -> go.Figure:
+    if not data:
+        return go.Figure()
+    data_page = slice_data_for_page(data, page)
+    if mode == "conf": return plotconfusion(data_page)
+    if mode == "hist": return plothistogram(data_page)
+    return plotblob(data_page)          # "blob"
+
+# ────────────────────────────────────────────────────────────────────
+# 3. Summary Table (전체 큐빗 기준)
+# ────────────────────────────────────────────────────────────────────
+def create_summary_table(data: dict):
+    rows = []
+    for i, q in enumerate(data["qubits"]):
+        ok = bool(data["success"][i])
+        rows.append(
+            html.Tr(
+                [
+                    html.Td(q),
+                    html.Td(f"{data['readout_fidelity'][i]: .1f} %" if ok else "—"),
+                    html.Td("✓" if ok else "✗"),
+                ],
+                className="table-success" if ok else "table-warning",
+            )
+        )
+    head = html.Thead(html.Tr([html.Th("Qubit"),
+                               html.Th("Readout Fidelity"),
+                               html.Th("Fit")]))
+    return dbc.Table([head, html.Tbody(rows)],
+                     bordered=True, striped=True, size="sm", responsive=True)
+
+# ────────────────────────────────────────────────────────────────────
+# 4. Layout
+# ────────────────────────────────────────────────────────────────────
+def create_iq_layout(folder: str | Path):
+    uid  = str(folder).replace("\\", "_").replace("/", "_").replace(":", "")
+    data = load_iq_data(folder)
+    if not data:
+        return html.Div([dbc.Alert("데이터 로드 실패", color="danger"),
+                         html.Pre(str(folder))])
+
+    n_pages = int(np.ceil(data["n"] / PER_PAGE))
+    init_fig = create_iq_plot(data, "conf", page=1)
+
+    # 페이지네이션 컴포넌트
+    page_selector = dbc.Pagination(
+        id={"type": "iq-page", "index": uid},
+        active_page=1, max_value=n_pages,
+        fully_expanded=False, first_last=True, size="lg",
+        className="my-2",
+    ) if n_pages > 1 else html.Div()
+
+    return html.Div(
+        [
+            dcc.Store(id={"type": "iq-data", "index": uid},
+                      data={"folder": str(folder)}),
+
+            # ── 제목 ─────────────────────────────────────────
+            dbc.Row(dbc.Col(html.H3(f"IQ Discrimination – {Path(folder).name}")),
+                    className="mb-3"),
+
+            # ── 뷰 선택 + 페이지 선택 ───────────────────────
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dbc.Card(
+                            dbc.CardBody(
+                                dcc.RadioItems(
+                                    id={"type": "iq-view", "index": uid},
+                                    options=[
+                                        {"label": " Confusion Mtx", "value": "conf"},
+                                        {"label": " Histogram",     "value": "hist"},
+                                        {"label": " Scatter (blob)", "value": "blob"},
+                                    ],
+                                    value="conf",
+                                    inline=True,
+                                )
+                            )
+                        ), md=8),
+                    dbc.Col(page_selector, md=4, className="d-flex align-items-center justify-content-end"),
+                ],
+                className="mb-3",
+            ),
+
+            # ── Graph + Summary ─────────────────────────────
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dcc.Loading(
+                            children=[
+                                dcc.Graph(
+                                    id={"type": "iq-plot", "index": uid},
+                                    figure=init_fig,
+                                    config={"displayModeBar": True},
+                                )
+                            ],
+                            type="default",
+                        ), md=8),
+                    dbc.Col(
+                        [
+                            html.H5("Summary"),
+                            create_summary_table(data),
+                            html.Hr(),
+                            html.H6("Debug"),
+                            html.Pre(f"Folder: {folder}\nQubits: {data['n']}\nPages: {n_pages}"),
+                        ], md=4),
+                ]
+            ),
+        ]
+    )
+
+# ────────────────────────────────────────────────────────────────────
+# 5. 콜백 (view 또는 page 변경 시 figure 갱신)
+# ────────────────────────────────────────────────────────────────────
+def register_iq_callbacks(app: dash.Dash):
+    @app.callback(
+        Output({"type": "iq-plot", "index": MATCH}, "figure"),
+        Input({"type": "iq-view",  "index": MATCH}, "value"),
+        Input({"type": "iq-page",  "index": MATCH}, "active_page"),
+        State({"type": "iq-data",  "index": MATCH}, "data"),
+    )
+    def updateplot(view_mode, page, store):
+        if not store:
+            return go.Figure()
+        data = load_iq_data(store["folder"])
+        return create_iq_plot(data, view_mode, page or 1)
