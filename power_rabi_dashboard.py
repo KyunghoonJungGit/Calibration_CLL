@@ -1,0 +1,295 @@
+"""
+Dash module for **Power‑Rabi** calibration experiments
+=====================================================
+* 1‑D  : nb_of_pulses 가 길이 1  –> 선 그래프
+* 2‑D  : nb_of_pulses 길이 ≥ 2 –> Heat‑map (colormesh)
+* 최대 10 개 이상의 큐빗을 가정하며, 2 열 × N 행 스크롤 레이아웃을 사용
+--------------------------------------------------------------------
+Author : (작성자 이름)
+Date   : 2025‑06‑22
+"""
+import dash
+from dash import dcc, html, Input, Output, State, MATCH
+import dash_bootstrap_components as dbc
+import plotly.graph_objs as go
+import plotly.subplots as subplots
+import xarray as xr
+import numpy as np
+import json, os
+from pathlib import Path
+
+# -------------------------------------------------------------------
+# 공용 헬퍼 : H5 파일 load
+# -------------------------------------------------------------------
+def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
+    last_err = None
+    for eng in engines:
+        try:
+            return xr.open_dataset(path, engine=eng)
+        except Exception as e:
+            last_err = e
+    raise last_err
+
+
+# -------------------------------------------------------------------
+# 1. 데이터 로더
+# -------------------------------------------------------------------
+def load_prabi_data(folder):
+    """
+    folder (str | Path) → dict  또는 None
+    반환 dict 내용
+      qubits, n, is_1d, nb_pulses, full_amp_mV, ds_raw, ds_fit,
+      success, opt_amp_mV, vars_available (['I','Q','state'] 중 존재 항목)
+    """
+    folder = os.path.normpath(folder)
+    paths = {k: os.path.join(folder, k) for k in
+             ("ds_raw.h5", "ds_fit.h5", "data.json", "node.json")}
+    if not all(os.path.exists(p) for p in paths.values()):
+        print(f"[load_prabi_data] missing files in {folder}")
+        return None
+
+    ds_raw = open_xr_dataset(paths["ds_raw.h5"])
+    ds_fit = open_xr_dataset(paths["ds_fit.h5"])
+
+    # 주요 공통 변수
+    qubits = ds_raw["qubit"].values
+    n_q    = len(qubits)
+
+    nb_of_pulses = ds_raw["nb_of_pulses"].values          # (P,)   int
+    is_1d        = len(nb_of_pulses) == 1
+
+    full_amp_mV  = ds_raw["full_amp"].values * 1e3        # (q, A) 또는 (A,)   mV
+    success      = ds_fit["success"].values
+    opt_amp_mV   = (ds_fit["opt_amp"].values * 1e3
+                    if "opt_amp" in ds_fit else np.full(n_q, np.nan))
+
+    # 어떤 data variable 이 있는지 조사
+    vars_avail = [v for v in ("I", "Q", "state") if v in ds_raw.data_vars]
+
+    # JSON 들은 디버그용으로만 저장
+    with open(paths["data.json"], "r", encoding="utf-8") as f:
+        data_json = json.load(f)
+    with open(paths["node.json"], "r", encoding="utf-8") as f:
+        node_json = json.load(f)
+
+    return dict(
+        qubits=qubits, n=n_q, is_1d=is_1d, nb_pulses=nb_of_pulses,
+        full_amp_mV=full_amp_mV, ds_raw=ds_raw, ds_fit=ds_fit,
+        success=success, opt_amp_mV=opt_amp_mV, vars_available=vars_avail,
+        data_json=data_json, node_json=node_json,
+    )
+
+
+# -------------------------------------------------------------------
+# 2. Plot 생성
+# -------------------------------------------------------------------
+def create_prabi_plot(data, var_key):
+    """
+    var_key ∈ {'I','Q','state'}
+    반환 : plotly.graph_objs.Figure
+    """
+    if not data or var_key not in data["vars_available"]:
+        return go.Figure()
+
+    qubits      = data["qubits"]
+    n_q         = data["n"]
+    nb_pulses   = data["nb_pulses"]
+    is_1d       = data["is_1d"]
+    ds_raw      = data["ds_raw"]
+    full_amp_mv = data["full_amp_mV"]
+    opt_amp_mv  = data["opt_amp_mV"]
+    success     = data["success"]
+
+    n_cols = 2
+    n_rows = int(np.ceil(n_q / n_cols))
+
+    fig = subplots.make_subplots(
+        rows=n_rows, cols=n_cols,
+        subplot_titles=[str(q) for q in qubits],
+        vertical_spacing=0.08, horizontal_spacing=0.07,
+    )
+
+    show_cbar = True   # 첫 heat‑map 에만 colorbar 표시
+    for idx, q in enumerate(qubits):
+        r, c = divmod(idx, n_cols)
+        row, col = r + 1, c + 1
+
+        # x축: full_amp (per‑qubit 또는 1D)
+        x_amp = (full_amp_mv[idx] if full_amp_mv.ndim == 2 else
+                 full_amp_mv)  # (A,)
+
+        da = ds_raw[var_key].sel(qubit=q)   # dims: amp_prefactor[, nb_of_pulses]
+        if var_key in ("I", "Q"):
+            da = da * 1e3                   # → mV
+
+        if is_1d:
+            y = da.squeeze().values
+            fig.add_trace(
+                go.Scatter(x=x_amp, y=y, mode="lines",
+                           line=dict(width=1, color="blue"),
+                           name="Data" if idx == 0 else None,
+                           showlegend=(idx == 0)),
+                row=row, col=col,
+            )
+            ylabel = {"I": "Rot I [mV]", "Q": "Rot Q [mV]",
+                      "state": "State"}[var_key]
+            fig.update_yaxes(title_text=ylabel if col == 1 else None,
+                             row=row, col=col)
+
+            # 최적 앰프
+            if success[idx] and not np.isnan(opt_amp_mv[idx]):
+                fig.add_vline(x=opt_amp_mv[idx],
+                              line=dict(color="red", dash="dash", width=1),
+                              row=row, col=col)
+                if idx == 0:
+                    fig.add_trace(go.Scatter(
+                        x=[None], y=[None], mode="lines",
+                        line=dict(color="red", dash="dash", width=1),
+                        name="opt. amp"), row=row, col=col)
+
+        else:   # 2‑D colormesh
+            z = da.transpose("nb_of_pulses", "amp_prefactor").values  # (P, A)
+
+            hm = go.Heatmap(
+                x=x_amp, y=nb_pulses, z=z,
+                coloraxis="coloraxis", showscale=show_cbar,
+            )
+            fig.add_trace(hm, row=row, col=col)
+            show_cbar = False   # 이후 subplot 은 colorbar 숨김
+
+            # 최적 앰프 라인
+            if success[idx] and not np.isnan(opt_amp_mv[idx]):
+                fig.add_trace(
+                    go.Scatter(
+                        x=[opt_amp_mv[idx]] * len(nb_pulses),
+                        y=nb_pulses,
+                        mode="lines",
+                        line=dict(color="white", dash="dash", width=1),
+                        hoverinfo="skip",
+                        showlegend=False,
+                    ),
+                    row=row, col=col,
+                )
+
+            fig.update_yaxes(title_text="# pulses" if col == 1 else None,
+                             autorange="reversed", row=row, col=col)
+
+        # 공통 X‑label
+        if row == n_rows:
+            fig.update_xaxes(title_text="Pulse amp. [mV]", row=row, col=col)
+
+    title_var = {"I": "I‑quadrature", "Q": "Q‑quadrature",
+                 "state": "State"}[var_key]
+    fig.update_layout(
+        title=f"Power Rabi – {title_var}",
+        height=280 * n_rows,
+        template="plotly_white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                    xanchor="right", x=1),
+        coloraxis=dict(colorbar=dict(title=var_key)),
+    )
+    return fig
+
+
+# -------------------------------------------------------------------
+# 3. Summary Table
+# -------------------------------------------------------------------
+def create_summary_table(data):
+    rows = []
+    for i, q in enumerate(data["qubits"]):
+        ok = bool(data["success"][i])
+        rows.append(
+            html.Tr(
+                [
+                    html.Td(q),
+                    html.Td(f"{data['opt_amp_mV'][i]:.3f}" if ok else "—"),
+                    html.Td("✓" if ok else "✗"),
+                ],
+                className="table-success" if ok else "table-warning",
+            )
+        )
+    head = html.Thead(html.Tr([html.Th("Qubit"),
+                               html.Th("opt. amp [mV]"),
+                               html.Th("Fit")]))
+    return dbc.Table([head, html.Tbody(rows)],
+                     bordered=True, striped=True, size="sm", responsive=True)
+
+
+# -------------------------------------------------------------------
+# 4. 레이아웃
+# -------------------------------------------------------------------
+def create_prabi_layout(folder):
+    uid = folder.replace("\\", "_").replace("/", "_").replace(":", "")
+    data = load_prabi_data(folder)
+    if not data:
+        return html.Div([dbc.Alert("데이터 로드 실패", color="danger"),
+                         html.Pre(folder)])
+
+    default_var = data["vars_available"][0]
+    init_fig = create_prabi_plot(data, default_var)
+
+    var_options = [{"label": f" {v}", "value": v} for v in data["vars_available"]]
+
+    return html.Div(
+        [
+            dcc.Store(id={"type": "prabi-data", "index": uid},
+                      data={"folder": folder}),
+            dbc.Row(dbc.Col(html.H3(f"Power Rabi – {Path(folder).name}")),
+                    className="mb-3"),
+
+            dbc.Row(
+                dbc.Col(
+                    dbc.Card(
+                        dbc.CardBody(
+                            dcc.RadioItems(
+                                id={"type": "prabi-var", "index": uid},
+                                options=var_options,
+                                value=default_var,
+                                inline=True,
+                            )
+                        )
+                    ), md=12
+                ), className="mb-3"
+            ),
+
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dcc.Loading(
+                            children=[dcc.Graph(id={"type": "prabi-plot",
+                                                    "index": uid},
+                                                figure=init_fig,
+                                                config={"displayModeBar": True})],
+                            type="default",
+                        ), md=8
+                    ),
+                    dbc.Col(
+                        [
+                            html.H5("Summary"),
+                            create_summary_table(data),
+                            html.Hr(),
+                            html.H6("Debug"),
+                            html.Pre(f"Folder: {folder}\nQubits: {data['n']}"
+                                     f"\n1‑D: {data['is_1d']}"),
+                        ], md=4
+                    ),
+                ]
+            ),
+        ]
+    )
+
+# -------------------------------------------------------------------
+# 5. 콜백
+# -------------------------------------------------------------------
+def register_prabi_callbacks(app: dash.Dash):
+
+    @app.callback(
+        Output({"type": "prabi-plot", "index": MATCH}, "figure"),
+        Input({"type": "prabi-var",  "index": MATCH}, "value"),
+        State({"type": "prabi-data", "index": MATCH}, "data"),
+    )
+    def _update_plot(var_key, store):
+        if not store:
+            return go.Figure()
+        data = load_prabi_data(store["folder"])
+        return create_prabi_plot(data, var_key)

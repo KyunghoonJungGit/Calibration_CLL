@@ -8,7 +8,8 @@ from pathlib import Path
 # 개별 실험 모듈 ----------------------------------------------------------
 from tof_dashboard        import create_tof_layout,   register_tof_callbacks
 from resonator_dashboard  import create_res_layout,   register_res_callbacks
-from qspec_dashboard      import create_qspec_layout, register_qspec_callbacks   # ★ NEW
+from qspec_dashboard      import create_qspec_layout, register_qspec_callbacks
+from power_rabi_dashboard import create_prabi_layout, register_prabi_callbacks   # ★ NEW ★
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -31,11 +32,17 @@ experiment_modules = {
         title="Resonator Spectroscopy",
         patterns=["res_spec", "resonator", "resonator_spectroscopy"],
     ),
-    "qspec": dict(                                                     # ★ NEW
+    "qspec": dict(
         layout_func=create_qspec_layout,
         register_func=register_qspec_callbacks,
         title="Qubit Spectroscopy",
         patterns=["qspec", "qubit_spec", "qubit_spectroscopy"],
+    ),
+    "prabi": dict(                                                             # ★ NEW ★
+        layout_func=create_prabi_layout,
+        register_func=register_prabi_callbacks,
+        title="Power Rabi",
+        patterns=["prabi", "power_rabi", "power‑rabi", "pwr_rabi", "rabi"],
     ),
 }
 
@@ -62,7 +69,8 @@ def find_experiments(base_path: str):
                 continue
             fname = exp_dir.name.lower()
             # 필수 파일 검사
-            if not (exp_dir.joinpath("ds_raw.h5").exists() and exp_dir.joinpath("ds_fit.h5").exists() and len(list(exp_dir.glob("*.json"))) >= 2):
+            if not (exp_dir.joinpath("ds_raw.h5").exists() and exp_dir.joinpath("ds_fit.h5").exists()
+                    and len(list(exp_dir.glob("*.json"))) >= 2):
                 continue
             # 실험 타입 판정
             typ = None
@@ -76,7 +84,8 @@ def find_experiments(base_path: str):
             m_t = re.search(r"(\d{6})$", fname)
             hh, mm, ss = (int(m_t.group(1)[:2]), int(m_t.group(1)[2:4]), int(m_t.group(1)[4:])) if m_t else (0, 0, 0)
             ts = datetime(y, m, d, hh, mm, ss).timestamp()
-            exps.setdefault(typ, []).append(dict(path=str(exp_dir), name=exp_dir.name, date_folder=dname, timestamp=ts))
+            exps.setdefault(typ, []).append(dict(path=str(exp_dir), name=exp_dir.name,
+                                                 date_folder=dname, timestamp=ts))
 
     for typ in exps:
         exps[typ].sort(key=lambda e: e["timestamp"], reverse=True)
@@ -104,7 +113,8 @@ app.layout = dbc.Container(
                             ],
                             md=8,
                         ),
-                        dbc.Col(dbc.Button("Refresh", id="refresh-button", color="primary", className="mt-4 w-100", size="lg"), md=4),
+                        dbc.Col(dbc.Button("Refresh", id="refresh-button", color="primary",
+                                           className="mt-4 w-100", size="lg"), md=4),
                     ]
                 )
             ),
@@ -149,28 +159,32 @@ def poll_folder(_, cur):
 def update_type_options(_, __, data, cur):
     if not data:
         return [], None
-    opts = [{"label": f"{info['title']} ({len(data.get(t, []))}개)", "value": t} for t, info in experiment_modules.items() if data.get(t)]
+    opts = [{"label": f"{info['title']} ({len(data.get(t, []))}개)", "value": t}
+            for t, info in experiment_modules.items() if data.get(t)]
     return opts, cur if any(o["value"] == cur for o in opts) else None
 
 
 @app.callback(
-    [Output("experiment-folder-dropdown", "options"), Output("experiment-folder-dropdown", "disabled"), Output("experiment-folder-dropdown", "value")],
+    [Output("experiment-folder-dropdown", "options"),
+     Output("experiment-folder-dropdown", "disabled"),
+     Output("experiment-folder-dropdown", "value")],
     Input("experiment-type-dropdown", "value"),
     State("current-experiments", "data"),
 )
 def update_folder_options(typ, data):
     if not typ or not data or typ not in data:
         return [], True, None
-    opts = [
-        dict(label=f"{e['name']} ({e['date_folder']} ‑ {datetime.fromtimestamp(e['timestamp']).strftime('%H:%M:%S')})", value=e["path"])
-        for e in data[typ]
-    ]
+    opts = [dict(label=f"{e['name']} ({e['date_folder']} ‑ "
+                       f"{datetime.fromtimestamp(e['timestamp']).strftime('%H:%M:%S')})",
+                 value=e["path"])
+            for e in data[typ]]
     return opts, False, None
 
 
 @app.callback(
     Output("experiment-content", "children"),
-    [Input("experiment-folder-dropdown", "value"), Input("experiment-type-dropdown", "value")],
+    [Input("experiment-folder-dropdown", "value"),
+     Input("experiment-type-dropdown", "value")],
 )
 def display_experiment(path, typ):
     if not path or not typ:
@@ -180,7 +194,8 @@ def display_experiment(path, typ):
 # 각 모듈 콜백 등록 -------------------------------------------------------
 register_tof_callbacks(app)
 register_res_callbacks(app)
-register_qspec_callbacks(app)    # ★ NEW
+register_qspec_callbacks(app)
+register_prabi_callbacks(app)     # ★ NEW ★
 
 # ----------------------------------------------------------------------
 # 4. 실행
