@@ -1,5 +1,5 @@
 # ======================================================================
-#  main_dashboard.py   (FULL / REPLACEMENT)
+#  main_dashboard.py   (FULL / REPLACEMENT  – Echo 지원 포함)
 # ======================================================================
 import dash
 from dash import dcc, html, Input, Output, State
@@ -15,7 +15,8 @@ from tof_dashboard        import create_tof_layout,   register_tof_callbacks
 from resonator_dashboard  import create_res_layout,   register_res_callbacks
 from qspec_dashboard      import create_qspec_layout, register_qspec_callbacks
 from power_rabi_dashboard import create_prabi_layout, register_prabi_callbacks
-from t1_dashboard         import create_t1_layout,    register_t1_callbacks   
+from t1_dashboard         import create_t1_layout,    register_t1_callbacks
+from echo_dashboard       import create_echo_layout,  register_echo_callbacks   # ★ NEW
 
 # ────────────────────────────────────────────────────────────────────
 # 앱 인스턴스 & 전역 설정
@@ -49,11 +50,17 @@ experiment_modules = {
         title="Power Rabi",
         patterns=["prabi", "power_rabi", "power‑rabi", "pwr_rabi", "rabi"],
     ),
-    "t1": dict(                                                           
+    "t1": dict(
         layout_func=create_t1_layout,
         register_func=register_t1_callbacks,
         title="T1 Relaxation",
         patterns=["t1", "t1_relax", "relaxation"],
+    ),
+    "echo": dict(                                                        # ★ NEW
+        layout_func=create_echo_layout,
+        register_func=register_echo_callbacks,
+        title="T2 Echo",
+        patterns=["echo", "t2echo", "t2_echo", "t2e"],
     ),
 }
 
@@ -262,7 +269,8 @@ register_tof_callbacks(app)
 register_res_callbacks(app)
 register_qspec_callbacks(app)
 register_prabi_callbacks(app)
-register_t1_callbacks(app)           
+register_t1_callbacks(app)
+register_echo_callbacks(app)         # ★ NEW
 
 # ────────────────────────────────────────────────────────────────────
 # 4. run
@@ -270,4 +278,3 @@ register_t1_callbacks(app)
 if __name__ == "__main__":
     print("[main] first scan:", find_experiments(EXPERIMENT_BASE_PATH))
     app.run(debug=True, port=8099)
-
