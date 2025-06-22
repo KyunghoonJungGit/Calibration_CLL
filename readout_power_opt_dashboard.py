@@ -232,6 +232,10 @@ def plot_blob(d: dict) -> go.Figure:
         vertical_spacing=V_SPACE, horizontal_spacing=H_SPACE,
     )
     for i, q in enumerate(qbs):
+        all_I = np.concatenate([d["Ig"], d["Ie"]]) if d["has_iq"] else np.array([0])
+        all_Q = np.concatenate([d["Qg"], d["Qe"]]) if d["has_iq"] else np.array([0])
+        x_min, x_max = float(all_I.min())*1.05, float(all_I.max())*1.05
+        y_min, y_max = float(all_Q.min())*1.05, float(all_Q.max())*1.05
         r, c = divmod(i, N_COLS); row, col = r+1, c+1
         fig.add_trace(go.Scatter(x=d["Ig"][i], y=d["Qg"][i], mode="markers",
                                  marker=dict(color="blue", size=3, opacity=0.25),
@@ -254,7 +258,10 @@ def plot_blob(d: dict) -> go.Figure:
             fig.add_trace(go.Scatter(x=[None], y=[None], mode="lines",
                                      line=dict(color="red", dash="dash"),
                                      name="Threshold"), row=row, col=col)
-        fig.update_yaxes(scaleanchor=f"x{i+1}", scaleratio=1, row=row, col=col)
+        fig.update_xaxes(range=[x_min, x_max], row=row, col=col)
+        fig.update_yaxes(range=[y_min, y_max],
+                         scaleanchor=f"x{i+1}", scaleratio=1,
+                         row=row, col=col)
         if row==n_rows:
             fig.update_xaxes(title_text="I [mV]", row=row, col=col)
         if col==1:
@@ -318,8 +325,10 @@ def create_rpo_layout(folder: str | Path):
     page_sel = dbc.Pagination(
         id={"type": "rpo-page", "index": uid},
         active_page=1, max_value=n_pages,
-        fully_expanded=False, first_last=True, size="lg", className="my-2"
-    ) if n_pages > 1 else html.Div()
+        fully_expanded=False, first_last=True, size="lg",
+        className="my-2",
+        style=None if n_pages > 1 else {"display": "none"},
+    )
 
     return html.Div(
         [

@@ -19,7 +19,7 @@ from t1_dashboard         import create_t1_layout,    register_t1_callbacks
 from echo_dashboard       import create_echo_layout,  register_echo_callbacks
 from ramsey_dashboard     import create_ramsey_layout, register_ramsey_callbacks
 from iq_dashboard         import create_iq_layout,    register_iq_callbacks     
-from readout_power_dashboard import create_rpo_layout, register_rpo_callbacks   
+from readout_power_opt_dashboard import create_rpo_layout, register_rpo_callbacks   
 
 # ────────────────────────────────────────────────────────────────────
 # 앱 인스턴스 & 전역 설정
@@ -295,7 +295,6 @@ register_prabi_callbacks(app)
 register_t1_callbacks(app)
 register_echo_callbacks(app)
 register_ramsey_callbacks(app)
-register_iq_callbacks(app)
 register_iq_callbacks(app)
 register_rpo_callbacks(app)  
 
