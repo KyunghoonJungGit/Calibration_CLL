@@ -1,260 +1,234 @@
 import dash
-from dash import dcc, html, Input, Output, State, callback_context
+from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
-import plotly.graph_objs as go
 from datetime import datetime
-import os
-import glob
-import json
+import plotly.graph_objs as go
+import os, re, glob, json
 from pathlib import Path
-import importlib
-import sys
 
-# 실험 타입별 모듈 임포트
+# 실험 타입별 모듈
 from tof_dashboard import create_tof_layout, register_tof_callbacks
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-# 전역 변수
-EXPERIMENT_BASE_PATH = './dashboard_data'
+# ------------------------------------------------------------------
+# 전역 설정
+# ------------------------------------------------------------------
+EXPERIMENT_BASE_PATH = "./dashboard_data"
+
+#  experiment_modules  :  exp_type  →  (module_name, title,  식별용 패턴 list)
 experiment_modules = {
-    'tof': ('tof_dashboard', 'Time of Flight'),
-    # 추후 다른 실험 모듈 추가
+    "tof": ("tof_dashboard", "Time of Flight", ["tof", "time_of_flight"]),
+    # 향후 다른 실험 타입을 여기에 추가
 }
 
 # ------------------------------------------------------------------
-# 1) 실험 폴더 탐색 ― timestamp 를 **epoch seconds(float)** 로 보관
+# 1. 실험 폴더 스캔
 # ------------------------------------------------------------------
-def find_experiments(base_path):
-    """실험 폴더들을 찾아서 분류"""
-    experiments = {}
+def find_experiments(base_path: str):
+    """
+    새 경로 규칙 지원:
+      • 날짜 폴더:  YYYY_MM_DD  또는  YYYY-MM-DD
+      • 실험 폴더: '#21_01b_time_of_flight_mw_fem_114314' 등
+         └ 맨 뒤 6자리(HHMMSS)가 측정 시각
+    """
+    experiments: dict[str, list] = {}
     base_path = os.path.normpath(base_path)
 
     if not os.path.exists(base_path):
-        print(f"Warning: Base path not found at {base_path}")
+        print(f"[find_experiments] base path not found → {base_path}")
         return experiments
 
-    date_pattern = os.path.join(base_path, '*_*_*')
-    date_folders = glob.glob(date_pattern)
+    # --- ① 날짜 폴더 목록 필터링 ---
+    date_regex = re.compile(r"^\d{4}[-_]\d{2}[-_]\d{2}$")
+    date_folders = [
+        os.path.join(base_path, d)
+        for d in os.listdir(base_path)
+        if os.path.isdir(os.path.join(base_path, d)) and date_regex.match(d)
+    ]
+    print(f"[find_experiments] date folders: {date_folders}")
 
-    print(f"Looking for experiments in: {base_path}")
-    print(f"Found date folders: {date_folders}")
-
+    # --- ② 각 날짜 폴더 내부 탐색 ---
     for date_folder in date_folders:
-        if not os.path.isdir(date_folder):
-            continue
+        date_label = os.path.basename(date_folder)          # '2025-06-19'
+        y, m, d = map(int, re.split(r"[-_]", date_label))   # 날짜 정보 추출
 
-        exp_pattern = os.path.join(date_folder, '*')
-        exp_folders = glob.glob(exp_pattern)
-
-        for exp_folder in exp_folders:
+        for exp_folder in glob.glob(os.path.join(date_folder, "*")):
             if not os.path.isdir(exp_folder):
                 continue
+            fname = os.path.basename(exp_folder)
 
-            folder_name = os.path.basename(exp_folder)
+            # 필수 데이터 파일 존재 여부
+            has_ds_raw = os.path.exists(os.path.join(exp_folder, "ds_raw.h5"))
+            has_ds_fit = os.path.exists(os.path.join(exp_folder, "ds_fit.h5"))
+            has_json   = len(glob.glob(os.path.join(exp_folder, "*.json"))) >= 2
+            if not (has_ds_raw and has_ds_fit and has_json):
+                continue
 
-            h5_files   = glob.glob(os.path.join(exp_folder, '*.h5'))
-            json_files = glob.glob(os.path.join(exp_folder, '*.json'))
+            # --- ③ 실험 타입 판정 ---
+            exp_type_detected = None
+            for exp_type, (_, _, patterns) in experiment_modules.items():
+                if any(p in fname.lower() for p in patterns):
+                    exp_type_detected = exp_type
+                    break
+            if exp_type_detected is None:
+                continue  # 알 수 없는 실험 타입
 
-            has_ds_raw = any('ds_raw.h5' in os.path.basename(f) for f in h5_files)
-            has_ds_fit = any('ds_fit.h5' in os.path.basename(f) for f in h5_files)
+            # --- ④ 시간(HHMMSS) 파싱 ---
+            t_match = re.search(r"(\d{6})$", fname)
+            if t_match:
+                hh, mm, ss = map(int, (t_match.group(1)[:2], t_match.group(1)[2:4], t_match.group(1)[4:]))
+            else:  # 실패하면 00:00:00
+                hh, mm, ss = 0, 0, 0
+            dt = datetime(y, m, d, hh, mm, ss)
+            ts_epoch = dt.timestamp()
 
-            if has_ds_raw and has_ds_fit and len(json_files) >= 2:
-                for exp_keyword, (module_name, exp_title) in experiment_modules.items():
-                    if folder_name.startswith(exp_keyword):
-                        experiments.setdefault(exp_keyword, []).append({
-                            'path'       : exp_folder,
-                            'name'       : folder_name,
-                            'date_folder': os.path.basename(date_folder),
-                            # ▶ epoch seconds 로 저장 (JSON 직렬화 가능)
-                            'timestamp'  : os.path.getmtime(exp_folder)
-                        })
-                        print(f"Found {exp_keyword} experiment: {exp_folder}")
-                        break
+            experiments.setdefault(exp_type_detected, []).append(
+                dict(
+                    path=exp_folder,
+                    name=fname,
+                    date_folder=date_label,
+                    timestamp=ts_epoch,
+                )
+            )
+            print(f"  ↳ found {exp_type_detected}: {exp_folder}")
 
-    for exp_type in experiments:
-        experiments[exp_type].sort(key=lambda x: x['timestamp'], reverse=True)
-
+    # --- ⑤ 최신순 정렬 ---
+    for typ in experiments:
+        experiments[typ].sort(key=lambda x: x["timestamp"], reverse=True)
     return experiments
 
 # ------------------------------------------------------------------
-# 레이아웃 정의
+# 2. 대시보드 레이아웃
 # ------------------------------------------------------------------
 app.layout = dbc.Container(
     [
-        dcc.Store(id='current-experiments', data={}),
-        dcc.Store(id='selected-experiment', data=None),
-        dcc.Interval(id='folder-check-interval', interval=5000, n_intervals=0),
-        dbc.Row([dbc.Col([html.H1("Qubit Calibration Dashboard", className="text-center mb-4")])]),
-        dbc.Row([dbc.Col([html.Div(id='alert-container')])], className="mb-3"),
-        dbc.Row(
-            [
-                dbc.Col(
+        dcc.Store(id="current-experiments", data={}),
+        dcc.Interval(id="folder-check-interval", interval=5000, n_intervals=0),
+        dbc.Row(dbc.Col(html.H1("Qubit Calibration Dashboard", className="text-center mb-4"))),
+        dbc.Row(dbc.Col(html.Div(id="alert-container")), className="mb-3"),
+
+        # 컨트롤 패널 ---------------------------------------------------
+        dbc.Card(
+            dbc.CardBody(
+                dbc.Row(
                     [
-                        dbc.Card(
+                        dbc.Col(
                             [
-                                dbc.CardBody(
-                                    [
-                                        dbc.Row(
-                                            [
-                                                dbc.Col(
-                                                    [
-                                                        html.H5("실험 선택"),
-                                                        dcc.Dropdown(
-                                                            id='experiment-type-dropdown',
-                                                            options=[],
-                                                            placeholder="실험 타입을 선택하세요",
-                                                            className="mb-2",
-                                                        ),
-                                                        dcc.Dropdown(
-                                                            id='experiment-folder-dropdown',
-                                                            options=[],
-                                                            placeholder="실험 폴더를 선택하세요",
-                                                            disabled=True,
-                                                        ),
-                                                    ],
-                                                    md=8,
-                                                ),
-                                                dbc.Col(
-                                                    [
-                                                        dbc.Button(
-                                                            "Refresh",
-                                                            id="refresh-button",
-                                                            color="primary",
-                                                            className="mt-4 w-100",
-                                                            size="lg",
-                                                        )
-                                                    ],
-                                                    md=4,
-                                                ),
-                                            ]
-                                        )
-                                    ]
-                                )
-                            ]
-                        )
+                                html.H5("실험 선택"),
+                                dcc.Dropdown(
+                                    id="experiment-type-dropdown",
+                                    placeholder="실험 타입 선택",
+                                    className="mb-2",
+                                ),
+                                dcc.Dropdown(
+                                    id="experiment-folder-dropdown",
+                                    placeholder="실험 폴더 선택",
+                                    disabled=True,
+                                ),
+                            ],
+                            md=8,
+                        ),
+                        dbc.Col(
+                            dbc.Button("Refresh", id="refresh-button", color="primary", className="mt-4 w-100", size="lg"),
+                            md=4,
+                        ),
                     ]
                 )
-            ],
+            ),
             className="mb-4",
         ),
-        dbc.Row([dbc.Col([html.Div(id='experiment-content')])]),
+
+        dbc.Row(dbc.Col(html.Div(id="experiment-content"))),
     ],
     fluid=True,
 )
 
 # ------------------------------------------------------------------
-# 2) 콜백들
+# 3. 콜백
 # ------------------------------------------------------------------
 
-# 폴더 감시
+# 3‑1) 주기적 폴더 감시
 @app.callback(
-    [Output('alert-container', 'children'), Output('current-experiments', 'data')],
-    [Input('folder-check-interval', 'n_intervals')],
-    [State('current-experiments', 'data')],
+    [Output("alert-container", "children"), Output("current-experiments", "data")],
+    Input("folder-check-interval", "n_intervals"),
+    State("current-experiments", "data"),
 )
-def check_new_experiments(n_intervals, current_experiments):
-    experiments = find_experiments(EXPERIMENT_BASE_PATH)
+def check_new(n, current):
+    exps = find_experiments(EXPERIMENT_BASE_PATH)
     alert = None
-    if current_experiments:
-        for exp_type, exp_list in experiments.items():
-            if exp_type in current_experiments:
-                current_names = {exp['name'] for exp in current_experiments[exp_type]}
-                new_names = {exp['name'] for exp in exp_list}
-                new_exps = new_names - current_names
-                if new_exps:
-                    alert = dbc.Alert(
-                        f"새로운 {experiment_modules[exp_type][1]} 실험이 발견되었습니다: {', '.join(new_exps)}",
-                        color="info",
-                        dismissable=True,
-                        duration=10000,
-                    )
-    return alert, experiments
+    if current:
+        for typ, lst in exps.items():
+            old = {e["name"] for e in current.get(typ, [])}
+            new = {e["name"] for e in lst} - old
+            if new:
+                alert = dbc.Alert(
+                    f"새로운 {experiment_modules[typ][1]} 실험 발견: {', '.join(sorted(new))}",
+                    color="info",
+                    dismissable=True,
+                    duration=10000,
+                )
+                break
+    return alert, exps
 
-
-# Refresh 버튼
+# 3‑2) Refresh 버튼 & 데이터 스토어 갱신
 @app.callback(
-    [Output('experiment-type-dropdown', 'options'), Output('experiment-type-dropdown', 'value')],
-    [Input('refresh-button', 'n_clicks'), Input('current-experiments', 'modified_timestamp')],
-    [State('current-experiments', 'data'), State('experiment-type-dropdown', 'value')],
+    [Output("experiment-type-dropdown", "options"), Output("experiment-type-dropdown", "value")],
+    [Input("refresh-button", "n_clicks"), Input("current-experiments", "modified_timestamp")],
+    [State("current-experiments", "data"), State("experiment-type-dropdown", "value")],
 )
-def update_experiment_types(n_clicks, ts, experiments, current_value):
-    if not experiments:
+def refresh_types(n_clicks, ts, data, cur_val):
+    if not data:
         return [], None
-    options = [
-        {'label': f"{exp_title} ({len(experiments[exp_type])}개)", 'value': exp_type}
-        for exp_type, (module, exp_title) in experiment_modules.items()
-        if exp_type in experiments and experiments[exp_type]
+    opts = [
+        dict(label=f"{title} ({len(data[typ])}개)", value=typ)
+        for typ, (_, title, _) in experiment_modules.items()
+        if typ in data
     ]
-    if current_value and any(opt['value'] == current_value for opt in options):
-        return options, current_value
-    return options, None
+    if cur_val and any(o["value"] == cur_val for o in opts):
+        return opts, cur_val
+    return opts, None
 
-
-# ------------------------------------------------------------------
-#  (★) 폴더 목록 업데이트 ― timestamp 파싱 후 strftime
-# ------------------------------------------------------------------
+# 3‑3) 실험 타입 선택 → 폴더 드롭다운 채우기
 @app.callback(
-    [
-        Output('experiment-folder-dropdown', 'options'),
-        Output('experiment-folder-dropdown', 'disabled'),
-        Output('experiment-folder-dropdown', 'value'),
-    ],
-    [Input('experiment-type-dropdown', 'value')],
-    [State('current-experiments', 'data')],
+    [Output("experiment-folder-dropdown", "options"),
+     Output("experiment-folder-dropdown", "disabled"),
+     Output("experiment-folder-dropdown", "value")],
+    Input("experiment-type-dropdown", "value"),
+    State("current-experiments", "data"),
 )
-def update_folder_list(exp_type, experiments):
-    if not exp_type or not experiments or exp_type not in experiments:
+def update_folder_list(exp_type, data):
+    if not exp_type or not data or exp_type not in data:
         return [], True, None
-
-    options = []
-    for exp in experiments[exp_type]:
-        ts = exp['timestamp']
-
-        # 숫자(epoch) → datetime
-        if isinstance(ts, (int, float)):
-            ts_dt = datetime.fromtimestamp(ts)
-
-        # 문자열(ISO 등) → datetime
-        elif isinstance(ts, str):
-            try:
-                ts_dt = datetime.fromisoformat(ts)
-            except ValueError:
-                ts_dt = datetime.fromtimestamp(float(ts))
-        else:
-            ts_dt = ts  # 안전장치
-
-        options.append(
-            {
-                'label': f"{exp['name']} ({exp['date_folder']} - {ts_dt.strftime('%H:%M')})",
-                'value': exp['path'],
-            }
+    opts = []
+    for exp in data[exp_type]:
+        dt = datetime.fromtimestamp(exp["timestamp"])
+        opts.append(
+            dict(
+                label=f"{exp['name']} ({exp['date_folder']} ‑ {dt.strftime('%H:%M:%S')})",
+                value=exp["path"],
+            )
         )
-    return options, False, None
+    return opts, False, None
 
-
-# 실험 레이아웃
+# 3‑4) 폴더 선택 → 실험 레이아웃
 @app.callback(
-    Output('experiment-content', 'children'),
-    [Input('experiment-folder-dropdown', 'value'), Input('experiment-type-dropdown', 'value')],
+    Output("experiment-content", "children"),
+    [Input("experiment-folder-dropdown", "value"), Input("experiment-type-dropdown", "value")],
 )
-def display_experiment(folder_path, exp_type):
-    if not folder_path or not exp_type:
+def display_exp(path, typ):
+    if not path or not typ:
         return html.Div("실험을 선택하세요.", className="text-center text-muted mt-5")
-    if exp_type == 'tof':
-        return create_tof_layout(folder_path)
-    return html.Div(
-        f"'{exp_type}' 실험 타입은 아직 구현되지 않았습니다.",
-        className="text-center text-warning mt-5",
-    )
+    if typ == "tof":
+        return create_tof_layout(path)
+    return html.Div(f"{typ} 타입은 아직 미구현입니다.", className="text-center text-warning mt-5")
 
-
-# TOF용 콜백 등록
+# TOF 플롯용 콜백 등록
 register_tof_callbacks(app)
 
 # ------------------------------------------------------------------
-# 앱 실행
+# 4. 실행
 # ------------------------------------------------------------------
-if __name__ == '__main__':
-    print("Initial experiments:", find_experiments(EXPERIMENT_BASE_PATH))
+if __name__ == "__main__":
+    print("[main] initial scan:", find_experiments(EXPERIMENT_BASE_PATH))
     app.run(debug=True, port=8099)
