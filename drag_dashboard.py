@@ -1,16 +1,16 @@
 # ======================================================================
-#  drag_dashboard.py   (FULL / NEW FILE)
+#  drag_dashboard.py   (FULL / UPDATED)
 # ======================================================================
 """
 Dash module for **DRAG‑coefficient calibration** experiments
 ============================================================
-* 2‑D sweep  : (#‑pulses , α‑prefactor)            → I‑quadrature  [mV]
-* 1‑D view   : α‑prefactor                         → ⟨I⟩           [mV]
+* 2‑D sweep  : (#‑pulses , α‑prefactor) → state population  **or** I‑quadrature
+* 1‑D view   : α‑prefactor → ⟨state⟩  or ⟨I⟩
 * Summary    : per‑qubit optimal α  +  fit‑success
-* Support ≥10 qubits with 2-column × N-row scrollable layout
+* Support  ≥10 qubits with 2‑column × N‑row scrollable layout
 --------------------------------------------------------------------
 Author : (Author Name)
-Date   : 2025‑06‑22
+Updated: 2025‑06‑23
 """
 from __future__ import annotations
 import dash
@@ -25,7 +25,7 @@ from pathlib import Path
 
 
 # ────────────────────────────────────────────────────────────────────
-# Safe xarray open_dataset
+# Utility : safe xarray.open_dataset
 # ────────────────────────────────────────────────────────────────────
 def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     last_err = None
@@ -38,15 +38,17 @@ def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
 
 
 # ────────────────────────────────────────────────────────────────────
-# 1. Data Loading
+# 1. Data Loading (state or I 지원)
 # ────────────────────────────────────────────────────────────────────
 def load_drag_data(folder: str | Path) -> dict | None:
     """
-    Returns dict:
+    Returns dict (None on failure)
       qubits, n,
       alpha, nb_pulses,
-      I_heat_mV (q, P, A)   – raw I [mV]
-      I_avg_mV  (q, A)      – pulse‑averaged I [mV]
+      Z_heat      (q, P, A)   – heat‑map data (state prob. **or** I[mV])
+      Z_avg       (q, A)      – pulse‑averaged
+      z_label     str         – for axes / colorbar
+      var_key     'state'|'I'
       opt_alpha, success,
       ds_raw, ds_fit, data_json, node_json
     """
@@ -69,52 +71,54 @@ def load_drag_data(folder: str | Path) -> dict | None:
     with open(paths["node_js"], "r", encoding="utf-8") as f:
         node_json = json.load(f)
 
-    qubits = ds_raw["qubit"].values          # (q,)
+    qubits = ds_raw["qubit"].values
     n_q    = len(qubits)
 
-    # ── Axes / Coordinates ──────────────────────────────────────────
-    # α‑prefactor
-    if "alpha" in ds_raw.coords:
-        alpha = ds_raw["alpha"].values                     # (A,) or (q,A)
-    elif "alpha_prefactor" in ds_raw.coords:
-        alpha = ds_raw["alpha_prefactor"].values
+    # ── coordinates ────────────────────────────────────────────────
+    alpha = (
+        ds_raw["alpha"].values
+        if "alpha" in ds_raw.coords
+        else ds_raw["alpha_prefactor"].values
+    )
+    nb_pulses = ds_raw["nb_of_pulses"].values
+
+    # ── variable detection : state  ↔  I ────────────────────────────
+    if "I" in ds_raw.data_vars:
+        var_key   = "I"
+        z_raw     = ds_raw["I"].values * 1e3            # mV
+        z_label   = "I [mV]"
+    elif "state" in ds_raw.data_vars:
+        var_key   = "state"
+        z_raw     = ds_raw["state"].values              # probability (0‑1)
+        z_label   = "State population"
     else:
-        raise KeyError("alpha or alpha_prefactor coordinate not found in ds_raw")
+        raise KeyError("Neither 'I' nor 'state' variable found in ds_raw")
 
-    # nb_of_pulses
-    nb_pulses = ds_raw["nb_of_pulses"].values              # (P,)
+    # Shape adapt (ensure (q,P,A))
+    Z_heat = z_raw if z_raw.ndim == 3 else z_raw[np.newaxis, ...]
 
-    # ── I data (heat‑map) ───────────────────────────────────────────
-    if "I" not in ds_raw.data_vars:
-        raise KeyError("'I' data variable missing in ds_raw")
-    I_raw = ds_raw["I"].values * 1e3                       # → mV
-
-    if I_raw.ndim == 3:                                    # (q, P, A)
-        I_heat_mV = I_raw
-    else:
-        # (P,A) (single qubit) → add qubit dim
-        I_heat_mV = I_raw[np.newaxis, ...]
-
-    # ── pulse‑averaged (1‑D) data ───────────────────────────────────
+    # Averaged (1‑D)
     if "averaged_data" in ds_raw:
-        I_avg_mV = ds_raw["averaged_data"].values * 1e3    # (q, A)
+        Z_avg = ds_raw["averaged_data"].values
+        if var_key == "I":
+            Z_avg = Z_avg * 1e3
     else:
-        I_avg_mV = I_heat_mV.mean(axis=1)                  # average over P
+        Z_avg = Z_heat.mean(axis=1)
 
-    # ── fit results (JSON) ──────────────────────────────────────────
+    # ── fit results ────────────────────────────────────────────────
     fit_results = data_json.get("fit_results", {})
     opt_alpha = np.full(n_q, np.nan, dtype=float)
     success   = np.full(n_q, False,  dtype=bool)
     for i, q in enumerate(qubits):
-        qk = str(q)
-        if qk in fit_results:
-            opt_alpha[i] = fit_results[qk].get("alpha", np.nan)
-            success[i]   = bool(fit_results[qk].get("success", False))
+        info = fit_results.get(str(q), {})
+        opt_alpha[i] = info.get("alpha", np.nan)
+        success[i]   = bool(info.get("success", False))
 
     return dict(
         qubits=qubits, n=n_q,
         alpha=alpha, nb_pulses=nb_pulses,
-        I_heat_mV=I_heat_mV, I_avg_mV=I_avg_mV,
+        Z_heat=Z_heat, Z_avg=Z_avg,
+        var_key=var_key, z_label=z_label,
         opt_alpha=opt_alpha, success=success,
         ds_raw=ds_raw, ds_fit=ds_fit,
         data_json=data_json, node_json=node_json,
@@ -122,58 +126,43 @@ def load_drag_data(folder: str | Path) -> dict | None:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 2‑A. Summary Figure  (bar + success)
+# 2‑A. Summary Figure
 # ────────────────────────────────────────────────────────────────────
 def create_summary_figure(d: dict) -> go.Figure:
-    qbs = d["qubits"]; n_q = d["n"]
-    fig = subplots.make_subplots(
-        rows=2, cols=1,
-        shared_xaxes=True,
-        row_heights=[0.7, 0.3],
-        vertical_spacing=0.02,
-    )
-
-    # row‑1 : optimal α
+    qbs = d["qubits"]
     colors = ["seagreen" if ok else "firebrick" for ok in d["success"]]
-    fig.add_trace(
-        go.Bar(x=qbs, y=d["opt_alpha"], marker_color=colors,
-               name="optimal α"),
-        row=1, col=1,
+
+    fig = subplots.make_subplots(
+        rows=2, cols=1, shared_xaxes=True,
+        row_heights=[0.7, 0.3], vertical_spacing=0.03,
     )
+    fig.add_trace(go.Bar(x=qbs, y=d["opt_alpha"],
+                         marker_color=colors, name="optimal α"),
+                  row=1, col=1)
     fig.add_hline(y=0, line=dict(color="black", dash="dash"), row=1, col=1)
-
-    # row‑2 : success (0/1)
-    fig.add_trace(
-        go.Bar(x=qbs, y=d["success"].astype(int),
-               marker_color=colors, name="fit OK"),
-        row=2, col=1,
-    )
+    fig.add_trace(go.Bar(x=qbs, y=d["success"].astype(int),
+                         marker_color=colors, name="fit OK"),
+                  row=2, col=1)
     fig.update_yaxes(range=[-0.1, 1.1], row=2, col=1)
-
     fig.update_layout(
-        title="DRAG Calibration Results by Qubit",
-        height=400,
-        template="plotly_white",
-        showlegend=False,
+        title="DRAG Calibration – per‑qubit results",
+        height=400, showlegend=False, template="plotly_white",
     )
     return fig
 
 
 # ────────────────────────────────────────────────────────────────────
-# 2‑B. Detailed Plot  (mode = 'avg' | 'heat')
+# 2‑B. Detailed Plot  (avg | heat)
 # ────────────────────────────────────────────────────────────────────
 def create_drag_plot(d: dict, mode: str = "avg") -> go.Figure:
     qbs      = d["qubits"]; n_q = d["n"]
-    alpha    = d["alpha"]
-    nb_puls  = d["nb_pulses"]
-    I_avg    = d["I_avg_mV"]
-    I_heat   = d["I_heat_mV"]
-    optα     = d["opt_alpha"]
-    success  = d["success"]
+    alpha    = d["alpha"];   nb_p = d["nb_pulses"]
+    Z_avg    = d["Z_avg"];   Z_hm = d["Z_heat"]
+    optα     = d["opt_alpha"]; success = d["success"]
+    label_z  = d["z_label"]; var_key = d["var_key"]
 
     n_cols = 2
     n_rows = int(np.ceil(n_q / n_cols))
-
     fig = subplots.make_subplots(
         rows=n_rows, cols=n_cols,
         subplot_titles=[str(q) for q in qbs],
@@ -187,65 +176,55 @@ def create_drag_plot(d: dict, mode: str = "avg") -> go.Figure:
 
         if mode == "avg":
             x = alpha if alpha.ndim == 1 else alpha[i]
-            y = I_avg[i]
             fig.add_trace(
-                go.Scatter(
-                    x=x, y=y, mode="lines",
-                    line=dict(color="blue", width=1),
-                    name="Data" if i == 0 else None,
-                    showlegend=(i == 0),
-                ),
+                go.Scatter(x=x, y=Z_avg[i], mode="lines",
+                           line=dict(color="blue", width=1),
+                           name="Data" if i == 0 else None,
+                           showlegend=(i == 0)),
                 row=row, col=col,
             )
-            # optimal α
             if success[i] and not np.isnan(optα[i]):
-                fig.add_vline(
-                    x=optα[i], line=dict(color="red", dash="dash", width=1),
-                    row=row, col=col,
-                )
+                fig.add_vline(x=optα[i],
+                              line=dict(color="red", dash="dash", width=1),
+                              row=row, col=col)
                 if i == 0:
-                    fig.add_trace(
-                        go.Scatter(x=[None], y=[None], mode="lines",
-                                   line=dict(color="red", dash="dash"),
-                                   name="optimal α"),
-                        row=row, col=col,
-                    )
+                    fig.add_trace(go.Scatter(x=[None], y=[None], mode="lines",
+                                             line=dict(color="red", dash="dash"),
+                                             name="optimal α"),
+                                  row=row, col=col)
+
         else:  # heat‑map
             x = alpha if alpha.ndim == 1 else alpha[i]
-            z = I_heat[i]                         # (P, A)
+            z = Z_hm[i]                                  # (P, A)
             fig.add_trace(
-                go.Heatmap(
-                    x=x, y=nb_puls, z=z,
-                    coloraxis="coloraxis",
-                    showscale=show_cbar,
-                ),
+                go.Heatmap(x=x, y=nb_p, z=z,
+                           coloraxis="coloraxis",
+                           showscale=show_cbar),
                 row=row, col=col,
             )
             show_cbar = False
-            # optimal α
             if success[i] and not np.isnan(optα[i]):
-                fig.add_vline(
-                    x=optα[i], line=dict(color="white", dash="dash", width=1),
-                    row=row, col=col,
-                )
-
+                fig.add_vline(x=optα[i],
+                              line=dict(color="white", dash="dash", width=1),
+                              row=row, col=col)
             fig.update_yaxes(title_text="# pulses" if col == 1 else None,
                              autorange="reversed", row=row, col=col)
 
-        # Common labels
+        # axis labels
         if row == n_rows:
-            fig.update_xaxes(title_text="DRAG coefficient α", row=row, col=col)
+            fig.update_xaxes(title_text="DRAG coefficient α",
+                             row=row, col=col)
         if col == 1 and mode == "avg":
-            fig.update_yaxes(title_text="⟨I⟩ [mV]", row=row, col=col)
+            fig.update_yaxes(title_text=f"⟨{label_z}⟩", row=row, col=col)
 
-    ttl = "Averaged I quadrature" if mode == "avg" else "I quadrature heat‑map"
+    title_mode = "Averaged" if mode == "avg" else "Heat‑map"
     fig.update_layout(
-        title=f"DRAG Calibration – {ttl}",
+        title=f"DRAG Calibration – {title_mode} ({label_z})",
         height=280 * n_rows,
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
-        coloraxis=dict(colorbar=dict(title="I [mV]")) if mode == "heat" else None,
+        coloraxis=dict(colorbar=dict(title=label_z)) if mode == "heat" else None,
     )
     return fig
 
@@ -284,7 +263,7 @@ def create_drag_layout(folder: str | Path):
         return html.Div([dbc.Alert("Failed to load data", color="danger"),
                          html.Pre(str(folder))])
 
-    init_mode = "avg"
+    init_mode  = "avg"
     summary_fig = create_summary_figure(data)
     detail_fig  = create_drag_plot(data, init_mode)
 
@@ -293,16 +272,13 @@ def create_drag_layout(folder: str | Path):
             dcc.Store(id={"type": "drag-data", "index": uid},
                       data={"folder": str(folder)}),
 
-            # ── Title ───────────────────────────────────────────────────────────
             dbc.Row(dbc.Col(html.H3(f"DRAG Calibration – {Path(folder).name}")),
                     className="mb-3"),
 
-            # ── Summary figure (top) ────────────────────────────────────────────
             dbc.Row(dbc.Col(
                 dcc.Graph(figure=summary_fig, config={"displayModeBar": True}),
                 md=12), className="mb-4"),
 
-            # ── View selector ───────────────────────────────────────────────────
             dbc.Row(
                 dbc.Col(
                     dbc.Card(
@@ -310,8 +286,8 @@ def create_drag_layout(folder: str | Path):
                             dcc.RadioItems(
                                 id={"type": "drag-view", "index": uid},
                                 options=[
-                                    {"label": " Averaged I", "value": "avg"},
-                                    {"label": " Heat‑map",   "value": "heat"},
+                                    {"label": " Averaged", "value": "avg"},
+                                    {"label": " Heat‑map", "value": "heat"},
                                 ],
                                 value=init_mode,
                                 inline=True,
@@ -321,7 +297,6 @@ def create_drag_layout(folder: str | Path):
                 ), className="mb-3"
             ),
 
-            # ── Detailed plot + summary table ──────────────────────────────────
             dbc.Row(
                 [
                     dbc.Col(
@@ -338,7 +313,8 @@ def create_drag_layout(folder: str | Path):
                             create_summary_table(data),
                             html.Hr(),
                             html.H6("Debug"),
-                            html.Pre(f"Folder: {folder}\nQubits: {data['n']}"),
+                            html.Pre(f"Folder: {folder}\nQubits: {data['n']}"
+                                     f"\nVar: {data['var_key']}"),
                         ], md=4),
                 ]
             ),
