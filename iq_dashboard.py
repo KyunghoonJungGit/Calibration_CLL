@@ -26,11 +26,11 @@ from pathlib import Path
 N_COLS             = 2      # Common number of columns for all views
 PER_PAGE           = 8      # Maximum qubits per page (2 cols × 4 rows)
 PLOT_HEIGHT_UNIT = {        # Height per row [px]  ### TUNE HERE
-    "conf": 260,            # confusion‑matrix
+    "conf": 360,            # confusion‑matrix
     "hist": 360,            # histogram
     "blob": 360,            # scatter (blob)
 }
-SUBPLOT_VSPACE     = 0.12   #   │ vertical spacing      ### TUNE HERE
+SUBPLOT_VSPACE     = 0.05   #   │ vertical spacing      ### TUNE HERE
 SUBPLOT_HSPACE     = 0.07   #   └─horizontal spacing
 
 # ────────────────────────────────────────────────────────────────────
@@ -313,6 +313,11 @@ def create_iq_layout(folder: str | Path):
                                     ],
                                     value="conf",
                                     inline=True,
+                                    inputStyle={
+                                        "margin-right": "8px",      # 동그라미와 텍스트 사이 간격
+                                        "margin-left": "20px",      # 동그라미 왼쪽 여백
+                                        "transform": "scale(1.2)"   # 동그라미 크기 조정 (선택사항)
+                                    }
                                 )
                             )
                         ), md=8),

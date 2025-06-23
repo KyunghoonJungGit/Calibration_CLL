@@ -80,14 +80,16 @@ def create_qspec_plot(data, view="rf"):
     if not data:
         return go.Figure()
 
-    n_cols = 1
-    n_rows = data["n"]
-    fig = subplots.make_subplots(rows=n_rows, cols=1, shared_xaxes=False,
+    n_cols = 2  # Changed from 1 to 2
+    n_rows = int(np.ceil(data["n"] / n_cols))  # Calculate rows needed for 2 columns
+    fig = subplots.make_subplots(rows=n_rows, cols=n_cols, shared_xaxes=False,
                                  subplot_titles=[f"{q}" for q in data["qubits"]],
                                  vertical_spacing=0.04)
 
     for i, q in enumerate(data["qubits"]):
-        row = i + 1
+        row = i // n_cols + 1  # Calculate row position
+        col = i % n_cols + 1   # Calculate column position
+        
         if view == "rf":
             x = data["freq_ghz"][i]
             y = data["I_rot"][i]
@@ -95,9 +97,9 @@ def create_qspec_plot(data, view="rf"):
                                      line=dict(color="blue", width=1),
                                      name="Data" if i == 0 else None,
                                      showlegend=(i == 0)),
-                          row=row, col=1)
-            fig.update_xaxes(title_text="RF frequency [GHz]" if row == n_rows else None, row=row, col=1)
-            fig.update_yaxes(title_text="Rotated I [mV]", row=row, col=1)
+                          row=row, col=col)
+            fig.update_xaxes(title_text="RF frequency [GHz]" if row == n_rows else None, row=row, col=col)
+            fig.update_yaxes(title_text="Rotated I [mV]", row=row, col=col)
         else:  # detuning
             x_det = data["det_mhz"]
             y_det = data["I_rot"][i]
@@ -105,7 +107,7 @@ def create_qspec_plot(data, view="rf"):
                                      line=dict(color="blue", width=1),
                                      name="Data" if i == 0 else None,
                                      showlegend=(i == 0)),
-                          row=row, col=1)
+                          row=row, col=col)
 
             # fit
             if data["success"][i]:
@@ -120,13 +122,14 @@ def create_qspec_plot(data, view="rf"):
                                          line=dict(color="red", dash="dash"),
                                          name="Fit" if i == 0 else None,
                                          showlegend=(i == 0)),
-                              row=row, col=1)
+                              row=row, col=col)
 
-            fig.update_xaxes(title_text="Detuning [MHz]" if row == n_rows else None, row=row, col=1)
-            fig.update_yaxes(title_text="Rotated I [mV]", row=row, col=1)
+            fig.update_xaxes(title_text="Detuning [MHz]" if row == n_rows else None, row=row, col=col)
+            fig.update_yaxes(title_text="Rotated I [mV]", row=row, col=col)
 
     title = "Qubit Spectroscopy – RF frequency" if view == "rf" else "Qubit Spectroscopy – Detuning / Fit"
-    fig.update_layout(title=title, height=250*n_rows, template="plotly_white",
+    fig.update_layout(title=title, height=400*n_rows,  # Changed from 250 to 400
+                      template="plotly_white",
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig
 

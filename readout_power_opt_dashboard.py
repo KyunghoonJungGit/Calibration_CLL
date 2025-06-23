@@ -349,6 +349,11 @@ def create_rpo_layout(folder: str | Path):
                                     ],
                                     value="assign",
                                     inline=True,
+                                    inputStyle={
+                                        "margin-right": "8px",      
+                                        "margin-left": "20px",      
+                                        "transform": "scale(1.2)"   
+                                    }
                                 )
                             )
                         ), md=8),

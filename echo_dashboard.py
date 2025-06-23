@@ -137,7 +137,7 @@ def create_echo_plot(data, var_key):
         rows=n_rows,
         cols=n_cols,
         subplot_titles=[str(q) for q in qbs],
-        vertical_spacing=0.08,
+        vertical_spacing=0.03,
         horizontal_spacing=0.07,
     )
 
@@ -201,7 +201,7 @@ def create_echo_plot(data, var_key):
     title_map = {"state": "State", "I": "I‑quadrature", "Q": "Q‑quadrature", "amp": "|IQ| magnitude"}
     fig.update_layout(
         title=f"T2 Echo – {title_map[var_key]}",
-        height=280 * n_rows,
+        height=350 * n_rows,
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),

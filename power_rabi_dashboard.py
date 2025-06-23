@@ -106,7 +106,7 @@ def create_prabi_plot(data, var_key):
     fig = subplots.make_subplots(
         rows=n_rows, cols=n_cols,
         subplot_titles=[str(q) for q in qubits],
-        vertical_spacing=0.08, horizontal_spacing=0.07,
+        vertical_spacing=0.03, horizontal_spacing=0.07,
     )
 
     show_cbar = True   # Show colorbar only for first heat‑map
@@ -125,7 +125,7 @@ def create_prabi_plot(data, var_key):
         if is_1d:
             y = da.squeeze().values
             fig.add_trace(
-                go.Scatter(x=x_amp, y=y, mode="lines",
+                go.Scatter(x=x_amp, y=y[::-1], mode="lines",
                            line=dict(width=1, color="blue"),
                            name="Data" if idx == 0 else None,
                            showlegend=(idx == 0)),
@@ -182,7 +182,7 @@ def create_prabi_plot(data, var_key):
                  "state": "State"}[var_key]
     fig.update_layout(
         title=f"Power Rabi – {title_var}",
-        height=280 * n_rows,
+        height=400 * n_rows,
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),

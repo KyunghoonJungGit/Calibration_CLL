@@ -291,6 +291,11 @@ def create_drag_layout(folder: str | Path):
                                 ],
                                 value=init_mode,
                                 inline=True,
+                                inputStyle={
+                                    "margin-right": "8px",      
+                                    "margin-left": "20px",      
+                                    "transform": "scale(1.2)"   
+                                }
                             )
                         )
                     ), md=12

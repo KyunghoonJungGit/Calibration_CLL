@@ -147,7 +147,7 @@ def create_ramsey_plot(data: dict, var_key: str) -> go.Figure:
     fig = subplots.make_subplots(
         rows=n_rows, cols=n_cols,
         subplot_titles=[str(q) for q in qubits],
-        vertical_spacing=0.08, horizontal_spacing=0.07,
+        vertical_spacing=0.03, horizontal_spacing=0.07,
     )
 
     color_map = {+1: "blue", -1: "red"}
@@ -227,7 +227,7 @@ def create_ramsey_plot(data: dict, var_key: str) -> go.Figure:
                "I": "I‑quadrature", "Q": "Q‑quadrature", "amp": "|IQ| magnitude"}
     fig.update_layout(
         title=f"Ramsey (T2*) – {ttl_map[var_key]}",
-        height=280 * n_rows,
+        height=380 * n_rows,
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
