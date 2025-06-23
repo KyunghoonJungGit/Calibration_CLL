@@ -2,12 +2,12 @@
 #  t1_dashboard.py   (FULL / NEW FILE)
 # ======================================================================
 """
-Dash module for **T1 relaxation** calibration experiments
+Dash module for **T1 relaxation** calibration experiments
 ========================================================
 * 1‑D sweep : Idle‑time [ns]  →  Readout amplitude (I / Q / |IQ|)
-* 다수(≥10) 큐빗을 지원하며, 2열 × N행 스크롤 레이아웃을 사용
+* Support multiple (≥10) qubits with 2-column × N-row scrollable layout
 --------------------------------------------------------------------
-Author : (작성자 이름)
+Author : (Author Name)
 Date   : 2025‑06‑22
 """
 import dash
@@ -21,7 +21,7 @@ import json, os
 from pathlib import Path
 
 # ────────────────────────────────────────────────────────────────────
-# 안전한 xarray open_dataset
+# Safe xarray open_dataset
 # ────────────────────────────────────────────────────────────────────
 def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     last_err = None
@@ -36,11 +36,11 @@ def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
 # Exponential decay
 # ────────────────────────────────────────────────────────────────────
 def decay_exp(t, a, offset, decay):
-    """a*exp(t*decay) + offset  (decay<0 ⇒ 감쇠)"""
+    """a*exp(t*decay) + offset  (decay<0 ⇒ decay)"""
     return a * np.exp(t * decay) + offset
 
 # ────────────────────────────────────────────────────────────────────
-# 1. 데이터 로딩
+# 1. Data Loading
 # ────────────────────────────────────────────────────────────────────
 def load_t1_data(folder):
     """
@@ -83,12 +83,12 @@ def load_t1_data(folder):
         fit_a      = fit_data.sel(fit_vals="a").values
         fit_offset = fit_data.sel(fit_vals="offset").values
         fit_decay  = fit_data.sel(fit_vals="decay").values
-    else:   # fallback (개별 변수)
+    else:   # fallback (individual variables)
         fit_a      = ds_fit["a"].values if "a" in ds_fit else np.full(n_q, np.nan)
         fit_offset = ds_fit["offset"].values if "offset" in ds_fit else np.full(n_q, np.nan)
         fit_decay  = ds_fit["decay"].values if "decay" in ds_fit else np.full(n_q, np.nan)
 
-    # ---------- 데이터 변수 존재 여부 ----------
+    # ---------- Data variable availability ----------
     vars_avail = [v for v in ("I", "Q") if v in ds_raw.data_vars]
     if all(v in vars_avail for v in ("I", "Q")):
         vars_avail.append("amp")    # |IQ|
@@ -103,7 +103,7 @@ def load_t1_data(folder):
     )
 
 # ────────────────────────────────────────────────────────────────────
-# 2. Plot 생성
+# 2. Plot Generation
 # ────────────────────────────────────────────────────────────────────
 def create_t1_plot(data, var_key):
     """
@@ -142,15 +142,15 @@ def create_t1_plot(data, var_key):
 
         if var_key == "I":
             y = I_raw * 1e3                                            # mV
-            ylabel = "Trans. amp I [mV]"
+            ylabel = "Trans. amp I [mV]"
         elif var_key == "Q":
             y = Q_raw * 1e3
-            ylabel = "Trans. amp Q [mV]"
+            ylabel = "Trans. amp Q [mV]"
         else:  # amp
             y = np.sqrt(I_raw**2 + Q_raw**2) * 1e3
-            ylabel = "|IQ| [mV]"
+            ylabel = "|IQ| [mV]"
 
-        # 원시 데이터
+        # Raw data
         fig.add_trace(
             go.Scatter(
                 x=t_ns,
@@ -163,7 +163,7 @@ def create_t1_plot(data, var_key):
             row=row, col=col,
         )
 
-        # 피팅 곡선
+        # Fit curve
         if success[idx] and not np.isnan(fit_decay[idx]):
             y_fit = decay_exp(t_ns, fit_a[idx], fit_offset[idx], fit_decay[idx]) * 1e3
             fig.add_trace(
@@ -178,15 +178,15 @@ def create_t1_plot(data, var_key):
                 row=row, col=col,
             )
 
-        # 축 레이블
+        # Axis labels
         if row == n_rows:
-            fig.update_xaxes(title_text="Idle time [ns]", row=row, col=col)
+            fig.update_xaxes(title_text="Idle time [ns]", row=row, col=col)
         if col == 1:
             fig.update_yaxes(title_text=ylabel, row=row, col=col)
 
     title_map = {"I": "I‑quadrature", "Q": "Q‑quadrature", "amp": "|IQ| magnitude"}
     fig.update_layout(
-        title=f"T1 Relaxation – {title_map[var_key]}",
+        title=f"T1 Relaxation – {title_map[var_key]}",
         height=280 * n_rows,
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
@@ -213,7 +213,7 @@ def create_summary_table(data):
             )
         )
     thead = html.Thead(html.Tr([html.Th(h) for h in
-                                ["Qubit", "T1 [µs]", "Err [µs]", "Fit"]]))
+                                ["Qubit", "T1 [µs]", "Err [µs]", "Fit"]]))
     return dbc.Table([thead, html.Tbody(rows)],
                      bordered=True, striped=True, size="sm", responsive=True)
 
@@ -225,7 +225,7 @@ def create_t1_layout(folder):
     data = load_t1_data(folder)
     if not data:
         return html.Div(
-            [dbc.Alert("데이터 로드 실패", color="danger"),
+            [dbc.Alert("Failed to load data", color="danger"),
              html.Pre(folder)]
         )
 
@@ -240,7 +240,7 @@ def create_t1_layout(folder):
             dcc.Store(id={"type": "t1-data", "index": uid},
                       data={"folder": folder}),
             dbc.Row(
-                dbc.Col(html.H3(f"T1 Relaxation – {Path(folder).name}")),
+                dbc.Col(html.H3(f"T1 Relaxation – {Path(folder).name}")),
                 className="mb-3",
             ),
             dbc.Row(
@@ -292,7 +292,7 @@ def create_t1_layout(folder):
     )
 
 # ────────────────────────────────────────────────────────────────────
-# 5. 콜백
+# 5. Callbacks
 # ────────────────────────────────────────────────────────────────────
 def register_t1_callbacks(app: dash.Dash):
     @app.callback(
@@ -305,4 +305,3 @@ def register_t1_callbacks(app: dash.Dash):
             return go.Figure()
         data = load_t1_data(store["folder"])
         return create_t1_plot(data, var_key)
-

@@ -5,9 +5,9 @@
 Dash module for **1Q Randomized‑Benchmarking** experiments
 ==========================================================
 * 1‑D    : circuit‑depth  →  averaged qubit‑state  (± fit)
-* Layout : >=10 qubits 지원, 2 열 × N 행 + 페이지네이션(8 qubits/page)
+* Layout : >=10 qubits support, 2 columns × N rows + pagination (8 qubits/page)
 --------------------------------------------------------------------
-Author : (작성자 이름)
+Author : (Author name)
 Rev.   : 2025‑06‑22
 """
 from __future__ import annotations
@@ -26,14 +26,14 @@ import plotly.subplots as subplots
 
 
 # ────────────────────────────────────────────────────────────────────
-# 0. 공용 유틸
+# 0. Common utilities
 # ────────────────────────────────────────────────────────────────────
 PER_PAGE = 8            # qubits per page
 N_COLS   = 2            # subplot columns
 
 
 def open_xr_dataset(path: str, engines=("h5netcdf", "netcdf4", None)) -> xr.Dataset:
-    """엔진 자동 변경을 시도하며 xarray Dataset을 연다."""
+    """Open xarray Dataset with automatic engine switching attempts."""
     last_exc: Exception | None = None
     for eng in engines:
         try:
@@ -44,30 +44,30 @@ def open_xr_dataset(path: str, engines=("h5netcdf", "netcdf4", None)) -> xr.Data
 
 
 def decay_exp(x: np.ndarray, a: float, offset: float, decay: float) -> np.ndarray:
-    """RB decay 모델 – offset + a·exp(decay·x)"""
+    """RB decay model – offset + a·exp(decay·x)"""
     return offset + a * np.exp(decay * x)
 
 
 # ────────────────────────────────────────────────────────────────────
-# 1. 데이터 로더
+# 1. Data loader
 # ────────────────────────────────────────────────────────────────────
 def load_rb_data(folder: str | Path) -> dict[str, Any] | None:
     """
-    폴더(또는 절대 경로) 내의 RB 결과 파일 4종(ds_raw.h5, ds_fit.h5,
-    data.json, node.json)을 불러와 Dash 프런트엔드에서 바로 사용할 수
-    있는 dict 형태로 반환한다.
+    Load 4 RB result files (ds_raw.h5, ds_fit.h5, data.json, node.json)
+    from folder (or absolute path) and return in dict format ready for
+    direct use in Dash frontend.
 
-    반환 필드
+    Return fields
     ----------
     qubits          ndarray[str]   (q)
-    n               int            qubit 개수
+    n               int            number of qubits
     depths          ndarray[float] (d)
     y_data          ndarray        (q, d)  • averaged qubit state
-    success         ndarray[bool]  (q)     • fit 성공 여부
-    rb_fidelity     ndarray        (q)     • 100 × (1 – error_per_gate)
-    fit_a/offset/decay             (q)     • fit 파라미터
-    ds_raw, ds_fit                원본 데이터셋 (필요 시 활용)
-    data_json, node_json          메타 정보
+    success         ndarray[bool]  (q)     • fit success status
+    rb_fidelity     ndarray        (q)     • 100 × (1 – error_per_gate)
+    fit_a/offset/decay             (q)     • fit parameters
+    ds_raw, ds_fit                original datasets (for use if needed)
+    data_json, node_json          metadata
     """
     folder = Path(folder).expanduser().resolve()
     paths = {
@@ -80,7 +80,7 @@ def load_rb_data(folder: str | Path) -> dict[str, Any] | None:
         print(f"[load_rb_data] Required files not found in {folder}")
         return None
 
-    # ── 파일 로드 ─────────────────────────────────────────────────
+    # ── File loading ─────────────────────────────────────────────────
     ds_raw  = open_xr_dataset(str(paths["ds_raw"]))
     ds_fit  = open_xr_dataset(str(paths["ds_fit"]))
     data_js = json.loads(paths["data_js"].read_text(encoding="utf-8"))
@@ -89,17 +89,17 @@ def load_rb_data(folder: str | Path) -> dict[str, Any] | None:
     qubits = ds_fit.get("qubit", ds_raw["qubit"]).values.astype(str)
     n_q    = len(qubits)
 
-    # ── depth 축 ────────────────────────────────────────────────
+    # ── depth axis ────────────────────────────────────────────────
     depths = (
         ds_fit.coords["depths"]
         if "depths" in ds_fit.coords
         else ds_fit.coords.get("circuit_depth", None)
     )
     if depths is None:
-        raise KeyError("'depths' coordinate가 ds_fit에 없습니다.")
+        raise KeyError("'depths' coordinate not found in ds_fit.")
     depths = depths.values.astype(float)
 
-    # ── 평균 상태 데이터 (y축) ────────────────────────────────────
+    # ── Average state data (y-axis) ────────────────────────────────────
     if "averaged_data" in ds_fit:
         y_data = ds_fit["averaged_data"].values                      # (q, d)
     elif "averaged_data" in ds_raw:
@@ -107,9 +107,9 @@ def load_rb_data(folder: str | Path) -> dict[str, Any] | None:
     elif "state" in ds_fit:                                          # (q, seq, d)
         y_data = ds_fit["state"].mean(dim="nb_of_sequences").values
     else:
-        raise KeyError("averaged_data/state 변수를 찾을 수 없습니다.")
+        raise KeyError("averaged_data/state variable not found.")
 
-    # ── 피팅 파라미터 ────────────────────────────────────────────
+    # ── Fitting parameters ────────────────────────────────────────────
     def _param_from(name: str) -> np.ndarray:
         if "fit_data" in ds_fit:
             return ds_fit["fit_data"].sel(fit_vals=name).values
@@ -119,14 +119,14 @@ def load_rb_data(folder: str | Path) -> dict[str, Any] | None:
     fit_offset = _param_from("offset")
     fit_decay  = _param_from("decay")
 
-    # ── 성공 여부 ───────────────────────────────────────────────
+    # ── Success status ───────────────────────────────────────────────
     if "success" in ds_fit:
         success = ds_fit["success"].values.astype(bool)
     else:
-        # 없으면 error_per_gate 유효성으로 대체
+        # If not available, use error_per_gate validity as substitute
         success = ~np.isnan(_param_from("decay"))
 
-    # ── RB fidelity (error_per_gate 사용) ─────────────────────────
+    # ── RB fidelity (using error_per_gate) ─────────────────────────────
     rb_fid = np.full(n_q, np.nan)
     for i, q in enumerate(qubits):
         res = data_js.get("fit_results", {}).get(str(q), {})
@@ -147,7 +147,7 @@ def load_rb_data(folder: str | Path) -> dict[str, Any] | None:
 # 1‑B. Pagination helper
 # ────────────────────────────────────────────────────────────────────
 def slice_page(data: dict[str, Any], page: int) -> dict[str, Any]:
-    """qubit 차원(q)만 슬라이싱해 서브‑dict 반환 (depth·메타 유지)."""
+    """Slice only qubit dimension (q), return sub-dict (maintaining depth·metadata)."""
     if not data:
         return data
     start = (page - 1) * PER_PAGE
@@ -163,10 +163,10 @@ def slice_page(data: dict[str, Any], page: int) -> dict[str, Any]:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 2. Plot 생성
+# 2. Plot generation
 # ────────────────────────────────────────────────────────────────────
 def create_rb_plot(d: dict[str, Any]) -> go.Figure:
-    """Plotly subplots Figure 반환 (Data + Fit)."""
+    """Return Plotly subplots Figure (Data + Fit)."""
     if not d:
         return go.Figure()
 
@@ -214,7 +214,7 @@ def create_rb_plot(d: dict[str, Any]) -> go.Figure:
                 row=row, col=col,
             )
 
-        # 축 레이블 (가장 아래/왼쪽에만)
+        # Axis labels (only at bottom/left)
         if row == n_rows:
             fig.update_xaxes(title_text="Circuit depth", row=row, col=col)
         if col == 1:
@@ -232,7 +232,7 @@ def create_rb_plot(d: dict[str, Any]) -> go.Figure:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 3. Summary Table
+# 3. Summary Table
 # ────────────────────────────────────────────────────────────────────
 def create_summary_table(d: dict[str, Any]) -> dbc.Table:
     rows: list[html.Tr] = []
@@ -240,7 +240,7 @@ def create_summary_table(d: dict[str, Any]) -> dbc.Table:
         
         ok = bool(d["success"][i])
         fid_txt = (
-            f"{d['rb_fidelity'][i]:.3f} %" if not np.isnan(d["rb_fidelity"][i]) else "—"
+            f"{d['rb_fidelity'][i]:.3f} %" if not np.isnan(d["rb_fidelity"][i]) else "—"
         )
         rows.append(
             html.Tr(
@@ -255,7 +255,7 @@ def create_summary_table(d: dict[str, Any]) -> dbc.Table:
 
     thead = html.Thead(
         html.Tr([html.Th("Qubit"),
-                 html.Th("1Q RB fidelity"),
+                 html.Th("1Q RB fidelity"),
                  html.Th("Fit")])
     )
     return dbc.Table([thead, html.Tbody(rows)],
@@ -263,22 +263,22 @@ def create_summary_table(d: dict[str, Any]) -> dbc.Table:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 4. 레이아웃 생성
+# 4. Layout generation
 # ────────────────────────────────────────────────────────────────────
 def create_rb_layout(folder: str | Path) -> html.Div:
     """
-    외부에서 `app.layout = create_rb_layout(<실험폴더>)` 처럼 호출.
+    Called externally as `app.layout = create_rb_layout(<experiment_folder>)`.
     """
     uid = str(folder).replace("\\", "_").replace("/", "_").replace(":", "")
     data = load_rb_data(folder)
     if not data:
-        return html.Div([dbc.Alert("데이터 로드 실패", color="danger"),
+        return html.Div([dbc.Alert("Data loading failed", color="danger"),
                          html.Pre(str(folder))])
 
     n_pages = int(np.ceil(data["n"] / PER_PAGE))
     init_fig = create_rb_plot(slice_page(data, 1))
 
-    # ── Pagination 컴포넌트 ─────────────────────────────────────────
+    # ── Pagination component ─────────────────────────────────────────
     page_selector = dbc.Pagination(
         id={"type": "rb-page", "index": uid},
         active_page=1,
@@ -290,23 +290,23 @@ def create_rb_layout(folder: str | Path) -> html.Div:
         style=None if n_pages > 1 else {"display": "none"},
     )
 
-    # ── 레이아웃 ----------------------------------------------------
+    # ── Layout ----------------------------------------------------
     return html.Div(
         [
-            # 데이터 캐싱
+            # Data caching
             dcc.Store(id={"type": "rb-data", "index": uid},
                       data={"folder": str(folder)}),
 
-            # 제목
+            # Title
             dbc.Row(
-                dbc.Col(html.H3(f"1Q Randomized Benchmark – {Path(folder).name}")),
+                dbc.Col(html.H3(f"1Q Randomized Benchmark – {Path(folder).name}")),
                 className="mb-3",
             ),
 
-            # 페이지네이션
+            # Pagination
             dbc.Row(dbc.Col(page_selector), className="mb-2"),
 
-            # 그래프 + Summary
+            # Graph + Summary
             dbc.Row(
                 [
                     dbc.Col(
@@ -338,12 +338,12 @@ def create_rb_layout(folder: str | Path) -> html.Div:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 5. 콜백 등록
+# 5. Callback registration
 # ────────────────────────────────────────────────────────────────────
 def register_rb_callbacks(app: dash.Dash):
     """
-    Dash 앱 인스턴스에 콜백을 등록한다.
-    반드시 앱 생성 후 `register_rb_callbacks(app)` 호출.
+    Register callbacks to Dash app instance.
+    Must call `register_rb_callbacks(app)` after app creation.
     """
 
     @app.callback(
@@ -361,10 +361,10 @@ def register_rb_callbacks(app: dash.Dash):
 
 
 # ────────────────────────────────────────────────────────────────────
-# 6. Stand‑alone 실행 (테스트용)
+# 6. Stand‑alone execution (for testing)
 # ────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    SAMPLE_PATH = "./"           # ← RB 결과 파일이 있는 폴더로 변경
+    SAMPLE_PATH = "./"           # ← Change to folder with RB result files
     app = dash.Dash(__name__,
                     external_stylesheets=[dbc.themes.BOOTSTRAP])
     app.layout = create_rb_layout(SAMPLE_PATH)

@@ -10,12 +10,12 @@ import os
 from pathlib import Path
 
 # -------------------------------------------------------------------
-#  NEW: 안전하게 H5 파일을 여는 유틸리티
+#  NEW: Utility to safely open H5 files
 # -------------------------------------------------------------------
 def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     """
-    xarray.open_dataset를 여러 엔진으로 시도.
-    첫 번째로 성공한 결과를 반환하고, 모두 실패하면 마지막 예외를 다시 raise.
+    Try xarray.open_dataset with multiple engines.
+    Return the first successful result, or raise the last exception if all fail.
     """
     last_error = None
     for eng in engines:
@@ -27,14 +27,14 @@ def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
         except Exception as e:
             print(f"✗ {type(e).__name__}: {e}")
             last_error = e
-    raise last_error  # 전부 실패하면 호출부에서 처리하도록 예외 전파
+    raise last_error  # Propagate exception for caller to handle if all fail
 
 
 # -------------------------------------------------------------------
-# 1. 데이터 로더
+# 1. Data Loader
 # -------------------------------------------------------------------
 def load_tof_data(folder_path):
-    """TOF 실험 데이터 로드"""
+    """Load TOF experiment data"""
     try:
         folder_path = os.path.normpath(folder_path)
 
@@ -43,7 +43,7 @@ def load_tof_data(folder_path):
         data_json_path = os.path.join(folder_path, "data.json")
         node_json_path = os.path.join(folder_path, "node.json")
 
-        # 필수 파일 존재 여부
+        # Check required file existence
         required = [ds_raw_path, ds_fit_path, data_json_path, node_json_path]
         if not all(os.path.exists(p) for p in required):
             print(f"[load_tof_data] Missing required files in {folder_path}")
@@ -87,7 +87,7 @@ def load_tof_data(folder_path):
 
 
 # -------------------------------------------------------------------
-# 2. 플롯 생성
+# 2. Plot Generation
 # -------------------------------------------------------------------
 def create_tof_plots(data, view_mode="averaged"):
     if not data:
@@ -126,7 +126,7 @@ def create_tof_plots(data, view_mode="averaged"):
             adcI = ds_raw["adc_single_runI"].sel(qubit=qubit).values * 1e3
             adcQ = ds_raw["adc_single_runQ"].sel(qubit=qubit).values * 1e3
 
-        # 회색 배경 – ADC 범위
+        # Gray background – ADC range
         fig.add_trace(
             go.Scatter(
                 x=[readout_time[0], readout_time[-1], readout_time[-1], readout_time[0], readout_time[0]],
@@ -142,7 +142,7 @@ def create_tof_plots(data, view_mode="averaged"):
             col=col,
         )
 
-        # I, Q 곡선
+        # I, Q curves
         fig.add_trace(
             go.Scatter(
                 x=readout_time,
@@ -170,7 +170,7 @@ def create_tof_plots(data, view_mode="averaged"):
             col=col,
         )
 
-        # TOF 지점
+        # TOF point
         if success[idx]:
             fig.add_vline(
                 x=delays[idx],
@@ -192,7 +192,7 @@ def create_tof_plots(data, view_mode="averaged"):
                     col=col,
                 )
 
-        # 축 범위/레이블
+        # Axis range/labels
         fig.update_xaxes(
             range=[0, 1000],
             title_text="Time [ns]" if row == n_rows else None,
@@ -221,11 +221,11 @@ def create_tof_plots(data, view_mode="averaged"):
 
 
 # -------------------------------------------------------------------
-# 3. 요약 테이블
+# 3. Summary Table
 # -------------------------------------------------------------------
 def create_summary_table(data):
     if not data:
-        return html.Div("데이터 없음")
+        return html.Div("No data available")
 
     qubits     = data["qubits"]
     delays     = data["delays"]
@@ -251,7 +251,7 @@ def create_summary_table(data):
 
 
 # -------------------------------------------------------------------
-# 4. 레이아웃
+# 4. Layout
 # -------------------------------------------------------------------
 def create_tof_layout(folder_path):
     unique_id = folder_path.replace("\\", "_").replace("/", "_").replace(":", "")
@@ -260,7 +260,7 @@ def create_tof_layout(folder_path):
     if not data:
         return html.Div(
             [
-                dbc.Alert("데이터 로드 실패 ‑ 파일을 찾을 수 없거나 읽을 수 없습니다.", color="danger"),
+                dbc.Alert("Failed to load data – files not found or unreadable.", color="danger"),
                 html.Pre(f"Folder path: {folder_path}"),
             ]
         )
@@ -340,7 +340,7 @@ def create_tof_layout(folder_path):
 
 
 # -------------------------------------------------------------------
-# 5. 콜백 등록
+# 5. Callback Registration
 # -------------------------------------------------------------------
 def register_tof_callbacks(app):
     @app.callback(

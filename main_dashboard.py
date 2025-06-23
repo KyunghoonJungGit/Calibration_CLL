@@ -1,5 +1,5 @@
 # ======================================================================
-#  main_dashboard.py   (FULL / REPLACEMENT  – RB 모듈 포함)
+#  main_dashboard.py   (FULL / REPLACEMENT  – RB module included)
 # ======================================================================
 import dash
 from dash import dcc, html, Input, Output, State
@@ -9,7 +9,7 @@ import os, re
 from pathlib import Path
 
 # ────────────────────────────────────────────────────────────────────
-# 실험별 Dash 모듈 임포트
+# Import Dash modules for each experiment
 # ────────────────────────────────────────────────────────────────────
 from tof_dashboard        import create_tof_layout,   register_tof_callbacks
 from resonator_dashboard  import create_res_layout,   register_res_callbacks
@@ -24,89 +24,89 @@ from drag_dashboard       import create_drag_layout,   register_drag_callbacks
 from rb1q_dashboard       import create_rb_layout,     register_rb_callbacks     # ★ NEW ★
 
 # ────────────────────────────────────────────────────────────────────
-# 앱 인스턴스 & 전역 설정
+# App instance & global settings
 # ────────────────────────────────────────────────────────────────────
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 EXPERIMENT_BASE_PATH = "./dashboard_data"
 
-# 실험 타입별 메타데이터 ------------------------------------------------
+# Experiment type metadata ------------------------------------------------
 experiment_modules = {
     "tof": dict(
         layout_func=create_tof_layout,
         register_func=register_tof_callbacks,
-        title="Time of Flight",
+        title="Time of Flight",
         patterns=["tof", "time_of_flight"],
     ),
     "res": dict(
         layout_func=create_res_layout,
         register_func=register_res_callbacks,
-        title="Resonator Spectroscopy",
+        title="Resonator Spectroscopy",
         patterns=["res_spec", "resonator", "resonator_spectroscopy"],
     ),
     "qspec": dict(
         layout_func=create_qspec_layout,
         register_func=register_qspec_callbacks,
-        title="Qubit Spectroscopy",
+        title="Qubit Spectroscopy",
         patterns=["qspec", "qubit_spec", "qubit_spectroscopy"],
     ),
     "prabi": dict(
         layout_func=create_prabi_layout,
         register_func=register_prabi_callbacks,
-        title="Power Rabi",
+        title="Power Rabi",
         patterns=["prabi", "power_rabi", "power‑rabi", "pwr_rabi", "rabi"],
     ),
     "t1": dict(
         layout_func=create_t1_layout,
         register_func=register_t1_callbacks,
-        title="T1 Relaxation",
+        title="T1 Relaxation",
         patterns=["t1", "t1_relax", "relaxation"],
     ),
     "echo": dict(
         layout_func=create_echo_layout,
         register_func=register_echo_callbacks,
-        title="T2 Echo",
+        title="T2 Echo",
         patterns=["echo", "t2echo", "t2_echo", "t2e"],
     ),
     "ramsey": dict(
         layout_func=create_ramsey_layout,
         register_func=register_ramsey_callbacks,
-        title="Ramsey (T2*)",
+        title="Ramsey (T2*)",
         patterns=["ramsey", "t2star", "t2*", "ramsey_exp"],
     ),
     "iq": dict(
         layout_func=create_iq_layout,
         register_func=register_iq_callbacks,
-        title="IQ Discrimination",
+        title="IQ Discrimination",
         patterns=["iq", "iq_blobs", "iq_readout"],
     ),
     "rpo": dict(
         layout_func=create_rpo_layout,
         register_func=register_rpo_callbacks,
-        title="Readout Power Opt.",
+        title="Readout Power Opt.",
         patterns=["readout_power", "power_opt", "readout_power_optimization",
                   "rpo", "readout‑power"],
     ),
     "drag": dict(
         layout_func=create_drag_layout,
         register_func=register_drag_callbacks,
-        title="DRAG Calibration",
+        title="DRAG Calibration",
         patterns=["drag", "drag_cal", "dragcal", "drag_calibration"],
     ),
     "rb1q": dict(                              # ★ NEW ★
         layout_func=create_rb_layout,
         register_func=register_rb_callbacks,
-        title="1Q Randomized Benchmark",
+        title="1Q Randomized Benchmark",
         patterns=["rb1q", "1q_rb", "Randomized", "Randomized_benchmarking", "benchmarking"],
     ),
 }
 
 # ────────────────────────────────────────────────────────────────────
-# 1. 실험 폴더 스캔  (experiment_modules 사용)
+# 1. Scan experiment folders (using experiment_modules)
 # ────────────────────────────────────────────────────────────────────
 def find_experiments(base_path: str):
     """
-    날짜 폴더: YYYY_MM_DD 또는 YYYY-MM-DD
-    실험 폴더: '#번호_…<keyword>…_<HHMMSS>'
+    Date folders: YYYY_MM_DD or YYYY-MM-DD
+    Experiment folders: '#number_…<keyword>…_<HHMMSS>'
     """
     exps: dict[str, list] = {}
     base_path = os.path.normpath(base_path)
@@ -128,7 +128,7 @@ def find_experiments(base_path: str):
                 continue
             fname = exp_dir.name.lower()
 
-            # 필수 데이터 파일 존재 여부
+            # Check if required data files exist
             required_ok = all(
                 (exp_dir / f).exists()
                 for f in ("ds_raw.h5", "ds_fit.h5")
@@ -136,7 +136,7 @@ def find_experiments(base_path: str):
             if not required_ok:
                 continue
 
-            # 실험 타입 판별
+            # Determine experiment type
             typ = None
             for t, info in experiment_modules.items():
                 if any(p in fname for p in info["patterns"]):
@@ -145,7 +145,7 @@ def find_experiments(base_path: str):
             if typ is None:
                 continue
 
-            # 타임스탬프
+            # Timestamp
             m_t = re.search(r"(\d{6})$", fname)
             hh, mm, ss = (
                 int(m_t.group(1)[:2]),
@@ -176,7 +176,7 @@ app.layout = dbc.Container(
         dcc.Store(id="current-experiments", data={}),
         dcc.Interval(id="folder-check-interval", interval=5000, n_intervals=0),
 
-        dbc.Row(dbc.Col(html.H1("Qubit Calibration Dashboard",
+        dbc.Row(dbc.Col(html.H1("Qubit Calibration Dashboard",
                                 className="text-center mb-4"))),
         dbc.Row(dbc.Col(html.Div(id="alert-container")), className="mb-3"),
 
@@ -186,15 +186,15 @@ app.layout = dbc.Container(
                     [
                         dbc.Col(
                             [
-                                html.H5("실험 선택"),
+                                html.H5("Experiment Selection"),
                                 dcc.Dropdown(
                                     id="experiment-type-dropdown",
-                                    placeholder="실험 타입 선택",
+                                    placeholder="Select experiment type",
                                     className="mb-2",
                                 ),
                                 dcc.Dropdown(
                                     id="experiment-folder-dropdown",
-                                    placeholder="실험 폴더 선택",
+                                    placeholder="Select experiment folder",
                                     disabled=True,
                                 ),
                             ],
@@ -237,7 +237,7 @@ def poll_folder(_, cur):
             added = {e["name"] for e in lst} - {e["name"] for e in cur.get(typ, [])}
             if added:
                 alert = dbc.Alert(
-                    f"새로운 {experiment_modules[typ]['title']} 실험 발견: {', '.join(sorted(added))}",
+                    f"New {experiment_modules[typ]['title']} experiment found: {', '.join(sorted(added))}",
                     color="info",
                     dismissable=True,
                     duration=10000,
@@ -259,7 +259,7 @@ def update_type_options(_, __, data, cur):
         return [], None
     opts = [
         {
-            "label": f"{info['title']} ({len(data.get(t, []))}개)",
+            "label": f"{info['title']} ({len(data.get(t, []))} items)",
             "value": t,
         }
         for t, info in experiment_modules.items()
@@ -296,12 +296,12 @@ def update_folder_options(typ, data):
 )
 def display_experiment(path, typ):
     if not path or not typ:
-        return html.Div("실험을 선택하세요.", className="text-center text-muted mt-5")
+        return html.Div("Please select an experiment.", className="text-center text-muted mt-5")
     return experiment_modules[typ]["layout_func"](path)
 
 
 # ────────────────────────────────────────────────────────────────────
-# 각 모듈 콜백 등록
+# Register callbacks for each module
 # ────────────────────────────────────────────────────────────────────
 register_tof_callbacks(app)
 register_res_callbacks(app)
@@ -313,7 +313,7 @@ register_ramsey_callbacks(app)
 register_iq_callbacks(app)
 register_rpo_callbacks(app)
 register_drag_callbacks(app)
-register_rb_callbacks(app)          # ★ NEW ★
+register_rb_callbacks(app)          
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -321,4 +321,4 @@ register_rb_callbacks(app)          # ★ NEW ★
 # ────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("[main] first scan:", find_experiments(EXPERIMENT_BASE_PATH))
-    app.run(debug=True, port=8073)
+    app.run(debug=True, port=7700)

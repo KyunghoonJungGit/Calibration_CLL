@@ -4,11 +4,11 @@
 """
 Dash module for **Ramsey (T2*)** calibration experiments
 ========================================================
-* Raw data : state (또는 I/Q) vs idle‑time, detuning_signs = ±1
-* Fit      : exp‑cos(2πf t + φ) · exp(‑t/τ)
-* ≥10 qubits 지원, 2 열 × N 행 스크롤 레이아웃
+* Raw data : state (or I/Q) vs idle‑time, detuning_signs = ±1
+* Fit      : exp‑cos(2πf t + φ) · exp(‑t/τ)
+* Support ≥10 qubits with 2-column × N-row scrollable layout
 --------------------------------------------------------------------
-Author : (작성자)
+Author : (Author Name)
 Date   : 2025‑06‑22
 """
 from __future__ import annotations
@@ -23,7 +23,7 @@ import json, os
 from pathlib import Path
 
 # ────────────────────────────────────────────────────────────────────
-# 안전한 xarray open_dataset
+# Safe xarray open_dataset
 # ────────────────────────────────────────────────────────────────────
 def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     last_err = None
@@ -35,16 +35,16 @@ def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     raise last_err
 
 # ────────────────────────────────────────────────────────────────────
-# Ramsey 모델 : exp‑decay × cos
+# Ramsey model: exp‑decay × cos
 # ────────────────────────────────────────────────────────────────────
 def exp_cos_gamma(t_ns, a, f_cyc_per_ns, phi_rad, offset, gamma_1_over_ns):
-    """offset + a·exp(‑γt)·cos(2πf t + φ)"""
+    """offset + a·exp(‑γt)·cos(2πf t + φ)"""
     return offset + a * np.exp(-t_ns * gamma_1_over_ns) * np.cos(
         2.0 * np.pi * f_cyc_per_ns * t_ns + phi_rad
     )
 
 # ────────────────────────────────────────────────────────────────────
-# 1. 데이터 로딩
+# 1. Data Loading
 # ────────────────────────────────────────────────────────────────────
 def load_ramsey_data(folder: str | Path) -> dict | None:
     folder = os.path.normpath(str(folder))
@@ -73,7 +73,7 @@ def load_ramsey_data(folder: str | Path) -> dict | None:
 
     success = ds_fit["success"].values if "success" in ds_fit else np.full(n_q, True)
 
-    # fit 파라미터
+    # fit parameters
     if "fit" in ds_fit:
         fit_da = ds_fit["fit"]          # dims: (qubit, detuning_signs, fit_vals)
         has_det_dim = True
@@ -110,7 +110,7 @@ def load_ramsey_data(folder: str | Path) -> dict | None:
     )
 
 # ────────────────────────────────────────────────────────────────────
-# 2. Plot 생성
+# 2. Plot Generation
 # ────────────────────────────────────────────────────────────────────
 def create_ramsey_plot(data: dict, var_key: str) -> go.Figure:
     if not data or var_key not in data["vars_available"]:
@@ -159,22 +159,22 @@ def create_ramsey_plot(data: dict, var_key: str) -> go.Figure:
 
         for sgn in signs:
             color = color_map.get(int(sgn), "gray")
-            s_lbl = "+" if sgn == +1 else "-"          # ← ASCII 부호 사용
-            # ── y 데이터 ────────────────────────────
+            s_lbl = "+" if sgn == +1 else "-"          # ← ASCII sign
+            # ── y data ──────────────────────────────
             if var_key == "state":
                 y = ds_raw["state"].sel(qubit=q, detuning_signs=sgn).values
                 ylabel = "State population"
             elif var_key == "I":
                 y = ds_raw["I"].sel(qubit=q, detuning_signs=sgn).values * 1e3
-                ylabel = "Rot I [mV]"
+                ylabel = "Rot I [mV]"
             elif var_key == "Q":
                 y = ds_raw["Q"].sel(qubit=q, detuning_signs=sgn).values * 1e3
-                ylabel = "Rot Q [mV]"
+                ylabel = "Rot Q [mV]"
             else:
                 I = ds_raw["I"].sel(qubit=q, detuning_signs=sgn).values
                 Q = ds_raw["Q"].sel(qubit=q, detuning_signs=sgn).values
                 y = np.sqrt(I**2 + Q**2) * 1e3
-                ylabel = "|IQ| [mV]"
+                ylabel = "|IQ| [mV]"
 
             fig.add_trace(
                 go.Scatter(
@@ -188,7 +188,7 @@ def create_ramsey_plot(data: dict, var_key: str) -> go.Figure:
             )
             legend_done[s_lbl] = True
 
-            # ── Fit 곡선 ────────────────────────────
+            # ── Fit curve ───────────────────────────
             if success[idx]:
                 if has_det_dim:
                     j = list(signs).index(sgn)
@@ -219,14 +219,14 @@ def create_ramsey_plot(data: dict, var_key: str) -> go.Figure:
                     legend_done["fit"] = True
 
         if row == n_rows:
-            fig.update_xaxes(title_text="Idle time [ns]", row=row, col=col)
+            fig.update_xaxes(title_text="Idle time [ns]", row=row, col=col)
         if col == 1:
             fig.update_yaxes(title_text=ylabel, row=row, col=col)
 
     ttl_map = {"state": "State population",
                "I": "I‑quadrature", "Q": "Q‑quadrature", "amp": "|IQ| magnitude"}
     fig.update_layout(
-        title=f"Ramsey (T2*) – {ttl_map[var_key]}",
+        title=f"Ramsey (T2*) – {ttl_map[var_key]}",
         height=280 * n_rows,
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
@@ -255,20 +255,20 @@ def create_summary_table(data: dict):
             )
         )
     thead = html.Thead(
-        html.Tr([html.Th("Qubit"), html.Th("Δf [MHz]"),
-                 html.Th("T2* [µs]"), html.Th("Fit")])
+        html.Tr([html.Th("Qubit"), html.Th("Δf [MHz]"),
+                 html.Th("T2* [µs]"), html.Th("Fit")])
     )
     return dbc.Table([thead, html.Tbody(rows)],
                      bordered=True, striped=True, size="sm", responsive=True)
 
 # ────────────────────────────────────────────────────────────────────
-# 4. 레이아웃
+# 4. Layout
 # ────────────────────────────────────────────────────────────────────
 def create_ramsey_layout(folder: str | Path):
     uid = str(folder).replace("\\", "_").replace("/", "_").replace(":", "")
     data = load_ramsey_data(folder)
     if not data:
-        return html.Div([dbc.Alert("데이터 로드 실패", color="danger"),
+        return html.Div([dbc.Alert("Failed to load data", color="danger"),
                          html.Pre(str(folder))])
 
     default_var = data["vars_available"][0]
@@ -324,7 +324,7 @@ def create_ramsey_layout(folder: str | Path):
     )
 
 # ────────────────────────────────────────────────────────────────────
-# 5. 콜백
+# 5. Callbacks
 # ────────────────────────────────────────────────────────────────────
 def register_ramsey_callbacks(app: dash.Dash):
     @app.callback(

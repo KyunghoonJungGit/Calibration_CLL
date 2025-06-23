@@ -6,10 +6,10 @@ Dash module for **DRAG‑coefficient calibration** experiments
 ============================================================
 * 2‑D sweep  : (#‑pulses , α‑prefactor)            → I‑quadrature  [mV]
 * 1‑D view   : α‑prefactor                         → ⟨I⟩           [mV]
-* Summary    : per‑qubit optimal α  +  fit‑success
-* ≥10 qubits 지원, 2 열 × N 행 스크롤 레이아웃
+* Summary    : per‑qubit optimal α  +  fit‑success
+* Support ≥10 qubits with 2-column × N-row scrollable layout
 --------------------------------------------------------------------
-Author : (작성자 이름)
+Author : (Author Name)
 Date   : 2025‑06‑22
 """
 from __future__ import annotations
@@ -25,7 +25,7 @@ from pathlib import Path
 
 
 # ────────────────────────────────────────────────────────────────────
-# 안전한 xarray open_dataset
+# Safe xarray open_dataset
 # ────────────────────────────────────────────────────────────────────
 def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     last_err = None
@@ -38,11 +38,11 @@ def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
 
 
 # ────────────────────────────────────────────────────────────────────
-# 1. 데이터 로딩
+# 1. Data Loading
 # ────────────────────────────────────────────────────────────────────
 def load_drag_data(folder: str | Path) -> dict | None:
     """
-    반환 dict
+    Returns dict:
       qubits, n,
       alpha, nb_pulses,
       I_heat_mV (q, P, A)   – raw I [mV]
@@ -72,10 +72,10 @@ def load_drag_data(folder: str | Path) -> dict | None:
     qubits = ds_raw["qubit"].values          # (q,)
     n_q    = len(qubits)
 
-    # ── 축 / 좌표 ────────────────────────────────────────────────
+    # ── Axes / Coordinates ──────────────────────────────────────────
     # α‑prefactor
     if "alpha" in ds_raw.coords:
-        alpha = ds_raw["alpha"].values                     # (A,) 또는 (q,A)
+        alpha = ds_raw["alpha"].values                     # (A,) or (q,A)
     elif "alpha_prefactor" in ds_raw.coords:
         alpha = ds_raw["alpha_prefactor"].values
     else:
@@ -84,7 +84,7 @@ def load_drag_data(folder: str | Path) -> dict | None:
     # nb_of_pulses
     nb_pulses = ds_raw["nb_of_pulses"].values              # (P,)
 
-    # ── I 데이터 (heat‑map) ─────────────────────────────────────
+    # ── I data (heat‑map) ───────────────────────────────────────────
     if "I" not in ds_raw.data_vars:
         raise KeyError("'I' data variable missing in ds_raw")
     I_raw = ds_raw["I"].values * 1e3                       # → mV
@@ -95,13 +95,13 @@ def load_drag_data(folder: str | Path) -> dict | None:
         # (P,A) (single qubit) → add qubit dim
         I_heat_mV = I_raw[np.newaxis, ...]
 
-    # ── pulse‑averaged (1‑D) 데이터 ─────────────────────────────
+    # ── pulse‑averaged (1‑D) data ───────────────────────────────────
     if "averaged_data" in ds_raw:
         I_avg_mV = ds_raw["averaged_data"].values * 1e3    # (q, A)
     else:
-        I_avg_mV = I_heat_mV.mean(axis=1)                  # 평균 over P
+        I_avg_mV = I_heat_mV.mean(axis=1)                  # average over P
 
-    # ── fit 결과 (JSON) ────────────────────────────────────────
+    # ── fit results (JSON) ──────────────────────────────────────────
     fit_results = data_json.get("fit_results", {})
     opt_alpha = np.full(n_q, np.nan, dtype=float)
     success   = np.full(n_q, False,  dtype=bool)
@@ -122,7 +122,7 @@ def load_drag_data(folder: str | Path) -> dict | None:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 2‑A. Summary Figure  (bar + success)
+# 2‑A. Summary Figure  (bar + success)
 # ────────────────────────────────────────────────────────────────────
 def create_summary_figure(d: dict) -> go.Figure:
     qbs = d["qubits"]; n_q = d["n"]
@@ -160,7 +160,7 @@ def create_summary_figure(d: dict) -> go.Figure:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 2‑B. 상세 Plot  (mode = 'avg' | 'heat')
+# 2‑B. Detailed Plot  (mode = 'avg' | 'heat')
 # ────────────────────────────────────────────────────────────────────
 def create_drag_plot(d: dict, mode: str = "avg") -> go.Figure:
     qbs      = d["qubits"]; n_q = d["n"]
@@ -229,29 +229,29 @@ def create_drag_plot(d: dict, mode: str = "avg") -> go.Figure:
                     row=row, col=col,
                 )
 
-            fig.update_yaxes(title_text="# pulses" if col == 1 else None,
+            fig.update_yaxes(title_text="# pulses" if col == 1 else None,
                              autorange="reversed", row=row, col=col)
 
-        # 공통 labels
+        # Common labels
         if row == n_rows:
-            fig.update_xaxes(title_text="DRAG coefficient α", row=row, col=col)
+            fig.update_xaxes(title_text="DRAG coefficient α", row=row, col=col)
         if col == 1 and mode == "avg":
-            fig.update_yaxes(title_text="⟨I⟩ [mV]", row=row, col=col)
+            fig.update_yaxes(title_text="⟨I⟩ [mV]", row=row, col=col)
 
     ttl = "Averaged I quadrature" if mode == "avg" else "I quadrature heat‑map"
     fig.update_layout(
-        title=f"DRAG Calibration – {ttl}",
+        title=f"DRAG Calibration – {ttl}",
         height=280 * n_rows,
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
-        coloraxis=dict(colorbar=dict(title="I [mV]")) if mode == "heat" else None,
+        coloraxis=dict(colorbar=dict(title="I [mV]")) if mode == "heat" else None,
     )
     return fig
 
 
 # ────────────────────────────────────────────────────────────────────
-# 3. Summary Table
+# 3. Summary Table
 # ────────────────────────────────────────────────────────────────────
 def create_summary_table(d: dict):
     rows = []
@@ -268,20 +268,20 @@ def create_summary_table(d: dict):
             )
         )
     thead = html.Thead(html.Tr([html.Th("Qubit"),
-                                html.Th("optimal α"),
+                                html.Th("optimal α"),
                                 html.Th("Fit")]))
     return dbc.Table([thead, html.Tbody(rows)],
                      bordered=True, striped=True, size="sm", responsive=True)
 
 
 # ────────────────────────────────────────────────────────────────────
-# 4. 레이아웃
+# 4. Layout
 # ────────────────────────────────────────────────────────────────────
 def create_drag_layout(folder: str | Path):
     uid = str(folder).replace("\\", "_").replace("/", "_").replace(":", "")
     data = load_drag_data(folder)
     if not data:
-        return html.Div([dbc.Alert("데이터 로드 실패", color="danger"),
+        return html.Div([dbc.Alert("Failed to load data", color="danger"),
                          html.Pre(str(folder))])
 
     init_mode = "avg"
@@ -293,16 +293,16 @@ def create_drag_layout(folder: str | Path):
             dcc.Store(id={"type": "drag-data", "index": uid},
                       data={"folder": str(folder)}),
 
-            # ── 제목 ----------------------------------------------------------------
+            # ── Title ───────────────────────────────────────────────────────────
             dbc.Row(dbc.Col(html.H3(f"DRAG Calibration – {Path(folder).name}")),
                     className="mb-3"),
 
-            # ── Summary figure (최상단) --------------------------------------------
+            # ── Summary figure (top) ────────────────────────────────────────────
             dbc.Row(dbc.Col(
                 dcc.Graph(figure=summary_fig, config={"displayModeBar": True}),
                 md=12), className="mb-4"),
 
-            # ── View selector -------------------------------------------------------
+            # ── View selector ───────────────────────────────────────────────────
             dbc.Row(
                 dbc.Col(
                     dbc.Card(
@@ -310,7 +310,7 @@ def create_drag_layout(folder: str | Path):
                             dcc.RadioItems(
                                 id={"type": "drag-view", "index": uid},
                                 options=[
-                                    {"label": " Averaged I", "value": "avg"},
+                                    {"label": " Averaged I", "value": "avg"},
                                     {"label": " Heat‑map",   "value": "heat"},
                                 ],
                                 value=init_mode,
@@ -321,7 +321,7 @@ def create_drag_layout(folder: str | Path):
                 ), className="mb-3"
             ),
 
-            # ── 상세 plot + summary table -------------------------------------------
+            # ── Detailed plot + summary table ──────────────────────────────────
             dbc.Row(
                 [
                     dbc.Col(
@@ -347,7 +347,7 @@ def create_drag_layout(folder: str | Path):
 
 
 # ────────────────────────────────────────────────────────────────────
-# 5. 콜백
+# 5. Callbacks
 # ────────────────────────────────────────────────────────────────────
 def register_drag_callbacks(app: dash.Dash):
     @app.callback(

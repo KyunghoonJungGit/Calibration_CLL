@@ -9,7 +9,7 @@ import json, os
 from pathlib import Path
 
 # --------------------------------------------------------------------
-# 공용 헬퍼 : xarray open_dataset 여러 엔진 시도
+# Common helper: xarray open_dataset with multiple engine attempts
 # --------------------------------------------------------------------
 def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     last_err = None
@@ -22,7 +22,7 @@ def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
 
 
 # --------------------------------------------------------------------
-# 1. 데이터 로더
+# 1. Data Loader
 # --------------------------------------------------------------------
 def load_res_data(folder):
     folder = os.path.normpath(folder)
@@ -70,7 +70,7 @@ def load_res_data(folder):
     )
 
 # --------------------------------------------------------------------
-# 2. Plot 생성
+# 2. Plot Generation
 # --------------------------------------------------------------------
 def lorentzian(x, x0, gamma, A, offset):
     return offset - A * (gamma / 2) ** 2 / ((x - x0) ** 2 + (gamma / 2) ** 2)
@@ -96,7 +96,7 @@ def create_res_plots(data, view="amplitude"):
             y = data["IQ_abs"][idx]
             fig.add_trace(go.Scatter(x=x, y=y, mode="lines", line=dict(color="blue", width=1), name="Data" if idx == 0 else None, showlegend=idx==0), row=r, col=c)
 
-            # fit 곡선
+            # fit curve
             if data["success"][idx] and not np.isnan(data["res_freq"][idx]):
                 x_fit = np.linspace(data["det_hz"].min(), data["det_hz"].max(), 500)
                 offset   = np.interp(x_fit, data["det_hz"], data["base_line"][idx])  # baseline interpolate
@@ -133,17 +133,17 @@ def create_summary_table(data):
                 className="table-success" if ok else "table-warning",
             )
         )
-    header = html.Thead(html.Tr([html.Th("Qubit"), html.Th("Res Freq [GHz]"), html.Th("FWHM [kHz]"), html.Th("Fit OK")]))
+    header = html.Thead(html.Tr([html.Th("Qubit"), html.Th("Res Freq [GHz]"), html.Th("FWHM [kHz]"), html.Th("Fit OK")]))
     return dbc.Table([header, html.Tbody(rows)], bordered=True, striped=True, size="sm", responsive=True)
 
 # --------------------------------------------------------------------
-# 4. 레이아웃 생성
+# 4. Layout Creation
 # --------------------------------------------------------------------
 def create_res_layout(folder):
     uid = folder.replace("\\", "_").replace("/", "_").replace(":", "")
     data = load_res_data(folder)
     if not data:
-        return html.Div([dbc.Alert("데이터 로드 실패", color="danger"), html.Pre(folder)])
+        return html.Div([dbc.Alert("Failed to load data", color="danger"), html.Pre(folder)])
 
     init_fig = create_res_plots(data, "amplitude")
 
@@ -192,7 +192,7 @@ def create_res_layout(folder):
     )
 
 # --------------------------------------------------------------------
-# 5. 콜백
+# 5. Callbacks
 # --------------------------------------------------------------------
 def register_res_callbacks(app):
     @app.callback(

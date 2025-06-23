@@ -6,12 +6,12 @@ Dash module for **Readout‑Power‑Optimization** experiments
 =========================================================
 * View‑1 : Assignment‑fidelity & non‑outlier vs relative‑power
 * View‑2 : Confusion‑matrix (2×2 per qubit)
-* View‑3 : IQ‑blob scatter (rotated Ig/Qg, Ie/Qe) + thresholds
+* View‑3 : IQ‑blob scatter (rotated Ig/Qg, Ie/Qe) + thresholds
 --------------------------------------------------------------------
-* ≥10 qubits 지원, 2 열 × N 행 페이지네이션 (1 page = 8 qubits)
-* 데이터 구성 : ds_raw.h5, ds_fit.h5, data.json, node.json (+ ds_iq_blobs.h5 optional)
+* ≥10 qubits support, 2 columns × N rows pagination (1 page = 8 qubits)
+* Data structure : ds_raw.h5, ds_fit.h5, data.json, node.json (+ ds_iq_blobs.h5 optional)
 --------------------------------------------------------------------
-Author : (작성자 이름)
+Author : (Author name)
 Date   : 2025‑06‑22
 """
 from __future__ import annotations
@@ -26,20 +26,20 @@ import json, os
 from pathlib import Path
 
 # ────────────────────────────────────────────────────────────────────
-# 글로벌 : 레이아웃/크기
+# Global: layout/sizing
 # ────────────────────────────────────────────────────────────────────
-N_COLS = 2                   # 모든 subplot 열 수
-PER_PAGE = 8                 # 2 열 × 4 행
-PLOT_H_UNIT = {              # 행 하나당 고정 높이(px)  ── 필요시 조정
+N_COLS = 2                   # All subplot column count
+PER_PAGE = 8                 # 2 columns × 4 rows
+PLOT_H_UNIT = {              # Fixed height per row (px)  ── adjust if needed
     "assign": 340,
     "conf":   260,
     "blob":   360,
 }
-V_SPACE = 0.12               # subplot 세로 간격
-H_SPACE = 0.07               # subplot 가로 간격
+V_SPACE = 0.12               # Subplot vertical spacing
+H_SPACE = 0.07               # Subplot horizontal spacing
 
 # ────────────────────────────────────────────────────────────────────
-# 안전한 xarray.open_dataset
+# Safe xarray.open_dataset
 # ────────────────────────────────────────────────────────────────────
 def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     last = None
@@ -51,11 +51,11 @@ def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     raise last
 
 # ────────────────────────────────────────────────────────────────────
-# 1. 데이터 로더
+# 1. Data loader
 # ────────────────────────────────────────────────────────────────────
 def load_rpo_data(folder: str | Path) -> dict | None:
     """
-    반환 dict
+    Return dict
       qubits, n,
       amp, fidelity, non_out, opt_amp,
       gg, ge, eg, ee,
@@ -79,7 +79,7 @@ def load_rpo_data(folder: str | Path) -> dict | None:
     with open(paths["data_js"], "r", encoding="utf-8") as f:
         data_json = json.load(f)
 
-    # ── 공통 메타 ───────────────────────────────────────────────
+    # ── Common metadata ───────────────────────────────────────────────
     qubits = ds_raw["qubit"].values
     n_q    = len(qubits)
     success = ds_fit["success"].values if "success" in ds_fit else np.full(n_q, True)
@@ -114,7 +114,7 @@ def load_rpo_data(folder: str | Path) -> dict | None:
         rus_thr = ds_iq["rus_threshold"].values * 1e3
         ge_thr  = ds_iq["ge_threshold"].values  * 1e3
     else:
-        # 최소 크기 placeholder (scatter plot 건너뜀)
+        # Minimal size placeholder (skip scatter plot)
         Ig = Ie = Qg = Qe = rus_thr = ge_thr = None
 
     return dict(
@@ -152,7 +152,7 @@ def plot_assignment(d: dict) -> go.Figure:
         x = d["amp"][i]
         fig.add_trace(go.Scatter(x=x, y=d["fidelity"][i], mode="lines",
                                  line=dict(color="blue", width=1.5),
-                                 name="readout fidelity" if i==0 else None,
+                                 name="readout fidelity" if i==0 else None,
                                  showlegend=i==0),
                       row=row, col=col)
         fig.add_trace(go.Scatter(x=x, y=d["non_out"][i], mode="lines",
@@ -165,16 +165,16 @@ def plot_assignment(d: dict) -> go.Figure:
         if i==0:
             fig.add_trace(go.Scatter(x=[None], y=[None], mode="lines",
                                      line=dict(color="black", dash="dash"),
-                                     name="optimal readout amplitude"),
+                                     name="optimal readout amplitude"),
                           row=row, col=col)
         if row==n_rows:
-            fig.update_xaxes(title_text="Relative power", row=row, col=col)
+            fig.update_xaxes(title_text="Relative power", row=row, col=col)
         if col==1:
             fig.update_yaxes(title_text="Fidelity / outliers", row=row, col=col)
         fig.update_yaxes(range=[0.5, 1.02], row=row, col=col)
 
     fig.update_layout(
-        title="Assignment fidelity and non‑outlier probability",
+        title="Assignment fidelity and non‑outlier probability",
         height=PLOT_H_UNIT["assign"]*n_rows,
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
@@ -254,7 +254,7 @@ def plot_blob(d: dict) -> go.Figure:
         if i==0:
             fig.add_trace(go.Scatter(x=[None], y=[None], mode="lines",
                                      line=dict(color="black", dash="dash"),
-                                     name="RUS Threshold"), row=row, col=col)
+                                     name="RUS Threshold"), row=row, col=col)
             fig.add_trace(go.Scatter(x=[None], y=[None], mode="lines",
                                      line=dict(color="red", dash="dash"),
                                      name="Threshold"), row=row, col=col)
@@ -317,7 +317,7 @@ def create_rpo_layout(folder: str | Path):
     uid = str(folder).replace("\\", "_").replace("/", "_").replace(":", "")
     data = load_rpo_data(folder)
     if not data:
-        return html.Div([dbc.Alert("데이터 로드 실패", color="danger"), html.Pre(str(folder))])
+        return html.Div([dbc.Alert("Data loading failed", color="danger"), html.Pre(str(folder))])
 
     n_pages = int(np.ceil(data["n"]/PER_PAGE))
     init_fig = make_plot(data, "assign", 1)
@@ -333,7 +333,7 @@ def create_rpo_layout(folder: str | Path):
     return html.Div(
         [
             dcc.Store(id={"type": "rpo-data", "index": uid}, data={"folder": str(folder)}),
-            dbc.Row(dbc.Col(html.H3(f"Readout Power Optimization – {Path(folder).name}")),
+            dbc.Row(dbc.Col(html.H3(f"Readout Power Optimization – {Path(folder).name}")),
                     className="mb-3"),
             dbc.Row(
                 [
@@ -344,8 +344,8 @@ def create_rpo_layout(folder: str | Path):
                                     id={"type": "rpo-view", "index": uid},
                                     options=[
                                         {"label": " Assignment", "value": "assign"},
-                                        {"label": " Confusion Mtx", "value": "conf"},
-                                        {"label": " Scatter (blob)", "value": "blob"},
+                                        {"label": " Confusion Mtx", "value": "conf"},
+                                        {"label": " Scatter (blob)", "value": "blob"},
                                     ],
                                     value="assign",
                                     inline=True,

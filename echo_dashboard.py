@@ -2,12 +2,12 @@
 #  echo_dashboard.py   (FULL / NEW FILE)
 # ======================================================================
 """
-Dash module for **T2 Echo** calibration experiments
+Dash module for **T2 Echo** calibration experiments
 ==================================================
-* 1‑D sweep : Idle‑time (μs)  →  state (probability) 또는 I/Q/|IQ|
-* ≥10 qubits 지원, 2 열 × N 행 스크롤 레이아웃
+* 1‑D sweep : Idle‑time (μs)  →  state (probability) or I/Q/|IQ|
+* Support ≥10 qubits with 2-column × N-row scrollable layout
 --------------------------------------------------------------------
-Author : (작성자 이름)
+Author : (Author Name)
 Date   : 2025‑06‑22
 """
 import dash
@@ -21,7 +21,7 @@ import json, os
 from pathlib import Path
 
 # ────────────────────────────────────────────────────────────────────
-# 안전한 xarray open_dataset
+# Safe xarray open_dataset
 # ────────────────────────────────────────────────────────────────────
 def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     last_err = None
@@ -33,13 +33,13 @@ def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     raise last_err
 
 # ────────────────────────────────────────────────────────────────────
-# 간단 exponential decay (offset + a·exp(decay·t))
+# Simple exponential decay (offset + a·exp(decay·t))
 # ────────────────────────────────────────────────────────────────────
 def decay_exp(t, a, offset, decay):
     return offset + a * np.exp(decay * t)
 
 # ────────────────────────────────────────────────────────────────────
-# 1. 데이터 로딩
+# 1. Data Loading
 # ────────────────────────────────────────────────────────────────────
 def load_echo_data(folder):
     """
@@ -71,16 +71,16 @@ def load_echo_data(folder):
     qubits = ds_raw["qubit"].values
     n_q    = len(qubits)
 
-    idle_time = ds_raw["idle_time"].values          # μs  (Matplotlib 예제 기준)
+    idle_time = ds_raw["idle_time"].values          # μs  (Matplotlib example based)
     success   = ds_fit["success"].values
 
-    # T2 echo (ns → μs 변환이 이미 끝난 값일 수도 있지만, 예제와 일치시킴)
+    # T2 echo (ns → μs conversion may already be done, but keep consistent with example)
     T2_ns   = ds_fit["T2_echo"].values if "T2_echo" in ds_fit else np.full(n_q, np.nan)
     T2_err  = ds_fit["T2_echo_error"].values if "T2_echo_error" in ds_fit else np.full(n_q, np.nan)
     T2_us   = T2_ns * 1e-3
     T2_err_us = T2_err * 1e-3
 
-    # fit parameters
+    # fit parameters
     if "fit_data" in ds_fit:
         fit_da   = ds_fit["fit_data"]                 # dims: qubit, fit_vals
         fit_a      = fit_da.sel(fit_vals="a").values
@@ -91,7 +91,7 @@ def load_echo_data(folder):
         fit_offset = ds_fit["offset"].values if "offset" in ds_fit else np.full(n_q, np.nan)
         fit_decay  = ds_fit["decay"].values  if "decay"  in ds_fit else np.full(n_q, np.nan)
 
-    # Raw data variables
+    # Raw data variables
     vars_avail = []
     for v in ("state", "I", "Q"):
         if v in ds_raw.data_vars:
@@ -110,7 +110,7 @@ def load_echo_data(folder):
     )
 
 # ────────────────────────────────────────────────────────────────────
-# 2. Plot 생성
+# 2. Plot Generation
 # ────────────────────────────────────────────────────────────────────
 def create_echo_plot(data, var_key):
     """
@@ -145,23 +145,23 @@ def create_echo_plot(data, var_key):
         r, c = divmod(idx, n_cols)
         row, col = r + 1, c + 1
 
-        # ── raw y 데이터 선택 ─────────────────────────────────────
+        # ── Select raw y data ───────────────────────────────────────────
         if var_key == "state":
             y = ds_raw["state"].sel(qubit=q).values
             ylabel = "State"
         elif var_key == "I":
             y = ds_raw["I"].sel(qubit=q).values * 1e3
-            ylabel = "Trans. amp I [mV]"
+            ylabel = "Trans. amp I [mV]"
         elif var_key == "Q":
             y = ds_raw["Q"].sel(qubit=q).values * 1e3
-            ylabel = "Trans. amp Q [mV]"
+            ylabel = "Trans. amp Q [mV]"
         else:  # amp
             Iraw = ds_raw["I"].sel(qubit=q).values
             Qraw = ds_raw["Q"].sel(qubit=q).values
             y = np.sqrt(Iraw**2 + Qraw**2) * 1e3
-            ylabel = "|IQ| [mV]"
+            ylabel = "|IQ| [mV]"
 
-        # ── plot raw data ───────────────────────────────────────
+        # ── Plot raw data ───────────────────────────────────────────────
         fig.add_trace(
             go.Scatter(
                 x=t_us, y=y,
@@ -173,7 +173,7 @@ def create_echo_plot(data, var_key):
             row=row, col=col,
         )
 
-        # ── fit curve ───────────────────────────────────────────
+        # ── Fit curve ───────────────────────────────────────────────────
         if success[idx] and not np.isnan(fit_decay[idx]):
             y_fit = decay_exp(t_us, fit_a[idx], fit_offset[idx], fit_decay[idx])
             if var_key in ("I", "Q", "amp"):               # same scaling
@@ -192,15 +192,15 @@ def create_echo_plot(data, var_key):
                 row=row, col=col,
             )
 
-        # ── axes ───────────────────────────────────────────────
+        # ── Axes ─────────────────────────────────────────────────────────
         if row == n_rows:
-            fig.update_xaxes(title_text="Idle time [μs]", row=row, col=col)
+            fig.update_xaxes(title_text="Idle time [μs]", row=row, col=col)
         if col == 1:
             fig.update_yaxes(title_text=ylabel, row=row, col=col)
 
     title_map = {"state": "State", "I": "I‑quadrature", "Q": "Q‑quadrature", "amp": "|IQ| magnitude"}
     fig.update_layout(
-        title=f"T2 Echo – {title_map[var_key]}",
+        title=f"T2 Echo – {title_map[var_key]}",
         height=280 * n_rows,
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
@@ -209,7 +209,7 @@ def create_echo_plot(data, var_key):
     return fig
 
 # ────────────────────────────────────────────────────────────────────
-# 3. Summary Table
+# 3. Summary Table
 # ────────────────────────────────────────────────────────────────────
 def create_summary_table(data):
     rows = []
@@ -227,18 +227,18 @@ def create_summary_table(data):
             )
         )
     thead = html.Thead(html.Tr([html.Th(h) for h in
-                                ["Qubit", "T2e [μs]", "Err [μs]", "Fit"]]))
+                                ["Qubit", "T2e [μs]", "Err [μs]", "Fit"]]))
     return dbc.Table([thead, html.Tbody(rows)],
                      bordered=True, striped=True, size="sm", responsive=True)
 
 # ────────────────────────────────────────────────────────────────────
-# 4. 레이아웃
+# 4. Layout
 # ────────────────────────────────────────────────────────────────────
 def create_echo_layout(folder):
     uid = folder.replace("\\", "_").replace("/", "_").replace(":", "")
     data = load_echo_data(folder)
     if not data:
-        return html.Div([dbc.Alert("데이터 로드 실패", color="danger"),
+        return html.Div([dbc.Alert("Failed to load data", color="danger"),
                          html.Pre(folder)])
 
     default_var = data["vars_available"][0]
@@ -253,7 +253,7 @@ def create_echo_layout(folder):
     return html.Div(
         [
             dcc.Store(id={"type": "echo-data", "index": uid}, data={"folder": folder}),
-            dbc.Row(dbc.Col(html.H3(f"T2 Echo – {Path(folder).name}")), className="mb-3"),
+            dbc.Row(dbc.Col(html.H3(f"T2 Echo – {Path(folder).name}")), className="mb-3"),
             dbc.Row(
                 dbc.Col(
                     dbc.Card(
@@ -303,7 +303,7 @@ def create_echo_layout(folder):
     )
 
 # ────────────────────────────────────────────────────────────────────
-# 5. 콜백
+# 5. Callbacks
 # ────────────────────────────────────────────────────────────────────
 def register_echo_callbacks(app: dash.Dash):
     @app.callback(

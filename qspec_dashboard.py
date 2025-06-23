@@ -9,7 +9,7 @@ import json, os
 from pathlib import Path
 
 # -------------------------------------------------------------------
-# 안전한 xarray 로딩
+# Safe xarray loading
 # -------------------------------------------------------------------
 def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     last_err = None
@@ -21,7 +21,7 @@ def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     raise last_err
 
 # -------------------------------------------------------------------
-# 1. 데이터 로드
+# 1. Data Loading
 # -------------------------------------------------------------------
 def load_qspec_data(folder):
     folder = os.path.normpath(folder)
@@ -73,10 +73,10 @@ def lorentzian_peak(x, A, center, width, offset):
     return offset + A * (1 / (1 + ((x - center) / width) ** 2))
 
 # -------------------------------------------------------------------
-# 3. Plot 생성
+# 3. Plot Generation
 # -------------------------------------------------------------------
 def create_qspec_plot(data, view="rf"):
-    """view='rf' → RF frequency 축,  view='det' → Detuning 축 + fit"""
+    """view='rf' → RF frequency axis,  view='det' → Detuning axis + fit"""
     if not data:
         return go.Figure()
 
@@ -96,8 +96,8 @@ def create_qspec_plot(data, view="rf"):
                                      name="Data" if i == 0 else None,
                                      showlegend=(i == 0)),
                           row=row, col=1)
-            fig.update_xaxes(title_text="RF frequency [GHz]" if row == n_rows else None, row=row, col=1)
-            fig.update_yaxes(title_text="Rotated I [mV]", row=row, col=1)
+            fig.update_xaxes(title_text="RF frequency [GHz]" if row == n_rows else None, row=row, col=1)
+            fig.update_yaxes(title_text="Rotated I [mV]", row=row, col=1)
         else:  # detuning
             x_det = data["det_mhz"]
             y_det = data["I_rot"][i]
@@ -123,9 +123,9 @@ def create_qspec_plot(data, view="rf"):
                               row=row, col=1)
 
             fig.update_xaxes(title_text="Detuning [MHz]" if row == n_rows else None, row=row, col=1)
-            fig.update_yaxes(title_text="Rotated I [mV]", row=row, col=1)
+            fig.update_yaxes(title_text="Rotated I [mV]", row=row, col=1)
 
-    title = "Qubit Spectroscopy – RF frequency" if view == "rf" else "Qubit Spectroscopy – Detuning / Fit"
+    title = "Qubit Spectroscopy – RF frequency" if view == "rf" else "Qubit Spectroscopy – Detuning / Fit"
     fig.update_layout(title=title, height=250*n_rows, template="plotly_white",
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig
@@ -149,17 +149,17 @@ def create_summary_table(data):
                 className="table-success" if ok else "table-warning",
             )
         )
-    thead = html.Thead(html.Tr([html.Th(h) for h in ["Qubit", "Res Freq [GHz]", "FWHM [MHz]", "π‑pulse amp", "Fit"]]))
+    thead = html.Thead(html.Tr([html.Th(h) for h in ["Qubit", "Res Freq [GHz]", "FWHM [MHz]", "π‑pulse amp", "Fit"]]))
     return dbc.Table([thead, html.Tbody(rows)], bordered=True, striped=True, size="sm", responsive=True)
 
 # -------------------------------------------------------------------
-# 5. 레이아웃
+# 5. Layout
 # -------------------------------------------------------------------
 def create_qspec_layout(folder):
     uid = folder.replace("\\", "_").replace("/", "_").replace(":", "")
     data = load_qspec_data(folder)
     if not data:
-        return html.Div([dbc.Alert("데이터 로드 실패", color="danger"), html.Pre(folder)])
+        return html.Div([dbc.Alert("Failed to load data", color="danger"), html.Pre(folder)])
 
     init_fig = create_qspec_plot(data, "rf")
     return html.Div(
@@ -173,8 +173,8 @@ def create_qspec_layout(folder):
                             dcc.RadioItems(
                                 id={"type": "qspec-view", "index": uid},
                                 options=[
-                                    {"label": " RF frequency", "value": "rf"},
-                                    {"label": " Detuning + Fit", "value": "det"},
+                                    {"label": " RF frequency", "value": "rf"},
+                                    {"label": " Detuning + Fit", "value": "det"},
                                 ],
                                 value="rf",
                                 inline=True,
@@ -212,7 +212,7 @@ def create_qspec_layout(folder):
     )
 
 # -------------------------------------------------------------------
-# 6. 콜백 등록
+# 6. Callback Registration
 # -------------------------------------------------------------------
 def register_qspec_callbacks(app):
     @app.callback(
