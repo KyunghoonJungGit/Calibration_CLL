@@ -1,5 +1,5 @@
 # ======================================================================
-#  main_dashboard.py   (FULL / REPLACEMENT  – DRAG 모듈 포함)
+#  main_dashboard.py   (FULL / REPLACEMENT  – RB 모듈 포함)
 # ======================================================================
 import dash
 from dash import dcc, html, Input, Output, State
@@ -9,7 +9,7 @@ import os, re
 from pathlib import Path
 
 # ────────────────────────────────────────────────────────────────────
-# 실험별 Dash 모듈
+# 실험별 Dash 모듈 임포트
 # ────────────────────────────────────────────────────────────────────
 from tof_dashboard        import create_tof_layout,   register_tof_callbacks
 from resonator_dashboard  import create_res_layout,   register_res_callbacks
@@ -20,7 +20,8 @@ from echo_dashboard       import create_echo_layout,  register_echo_callbacks
 from ramsey_dashboard     import create_ramsey_layout, register_ramsey_callbacks
 from iq_dashboard         import create_iq_layout,    register_iq_callbacks
 from readout_power_opt_dashboard import create_rpo_layout, register_rpo_callbacks
-from drag_dashboard       import create_drag_layout,   register_drag_callbacks   # ★ NEW ★
+from drag_dashboard       import create_drag_layout,   register_drag_callbacks
+from rb1q_dashboard       import create_rb_layout,     register_rb_callbacks     # ★ NEW ★
 
 # ────────────────────────────────────────────────────────────────────
 # 앱 인스턴스 & 전역 설정
@@ -85,22 +86,27 @@ experiment_modules = {
         patterns=["readout_power", "power_opt", "readout_power_optimization",
                   "rpo", "readout‑power"],
     ),
-    "drag": dict(                               # ★ NEW ★
+    "drag": dict(
         layout_func=create_drag_layout,
         register_func=register_drag_callbacks,
         title="DRAG Calibration",
         patterns=["drag", "drag_cal", "dragcal", "drag_calibration"],
     ),
+    "rb1q": dict(                              # ★ NEW ★
+        layout_func=create_rb_layout,
+        register_func=register_rb_callbacks,
+        title="1Q Randomized Benchmark",
+        patterns=["rb1q", "1q_rb", "Randomized", "Randomized_benchmarking", "benchmarking"],
+    ),
 }
 
 # ────────────────────────────────────────────────────────────────────
-# 1. 실험 폴더 스캔
-#   (내용 동일 – experiment_modules dict 자동 사용)
+# 1. 실험 폴더 스캔  (experiment_modules 사용)
 # ────────────────────────────────────────────────────────────────────
 def find_experiments(base_path: str):
     """
-    날짜 폴더: YYYY_MM_DD 또는 YYYY-MM-DD
-    실험 폴더: '#번호_…<keyword>…_<HHMMSS>'
+    날짜 폴더: YYYY_MM_DD 또는 YYYY-MM-DD
+    실험 폴더: '#번호_…<keyword>…_<HHMMSS>'
     """
     exps: dict[str, list] = {}
     base_path = os.path.normpath(base_path)
@@ -216,7 +222,7 @@ app.layout = dbc.Container(
 )
 
 # ────────────────────────────────────────────────────────────────────
-# 3. Callbacks  (기존과 동일)
+# 3. Callbacks
 # ────────────────────────────────────────────────────────────────────
 @app.callback(
     [Output("alert-container", "children"), Output("current-experiments", "data")],
@@ -306,7 +312,8 @@ register_echo_callbacks(app)
 register_ramsey_callbacks(app)
 register_iq_callbacks(app)
 register_rpo_callbacks(app)
-register_drag_callbacks(app)   # ★ NEW ★
+register_drag_callbacks(app)
+register_rb_callbacks(app)          # ★ NEW ★
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -314,4 +321,4 @@ register_drag_callbacks(app)   # ★ NEW ★
 # ────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("[main] first scan:", find_experiments(EXPERIMENT_BASE_PATH))
-    app.run(debug=True, port=8071)
+    app.run(debug=True, port=8073)
