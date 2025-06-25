@@ -30,6 +30,7 @@ import plotly.subplots as subplots
 # ────────────────────────────────────────────────────────────────────
 PER_PAGE = 8            # qubits per page
 N_COLS   = 2            # subplot columns
+MAX_VALID_FIDELITY = 99.9995  # 이 값 이상은 비현실적인 값으로 간주
 
 
 def open_xr_dataset(path: str, engines=("h5netcdf", "netcdf4", None)) -> xr.Dataset:
@@ -175,6 +176,7 @@ def create_rb_plot(d: dict[str, Any]) -> go.Figure:
     y_data        = d["y_data"]
     success       = d["success"]
     fit_a, fit_o, fit_d = d["fit_a"], d["fit_offset"], d["fit_decay"]
+    rb_fidelity   = d["rb_fidelity"]
 
     n_rows = int(np.ceil(n_q / N_COLS))
     fig = subplots.make_subplots(
@@ -200,8 +202,13 @@ def create_rb_plot(d: dict[str, Any]) -> go.Figure:
             row=row, col=col,
         )
 
-        # ── Fit curve ─────────────────────────────────────────────
-        if bool(success[i]) and not np.isnan(fit_d[i]):
+        # ── Fit curve (only for valid results) ───────────────────
+        fid_val = rb_fidelity[i]
+        fit_valid = (bool(success[i]) and 
+                    not np.isnan(fit_d[i]) and 
+                    not (fid_val >= MAX_VALID_FIDELITY))  # 비현실적인 값 제외
+
+        if fit_valid:
             y_fit = decay_exp(depths, fit_a[i], fit_o[i], fit_d[i])
             fig.add_trace(
                 go.Scatter(
@@ -239,9 +246,20 @@ def create_summary_table(d: dict[str, Any]) -> dbc.Table:
     for i, q in enumerate(d["qubits"]):
         
         ok = bool(d["success"][i])
-        fid_txt = (
-            f"{d['rb_fidelity'][i]:.3f} %" if not np.isnan(d["rb_fidelity"][i]) else "—"
-        )
+        
+        # RB fidelity 값 처리
+        fid_val = d["rb_fidelity"][i]
+        if np.isnan(fid_val):
+            fid_txt = "—"
+            row_class = "table-warning"
+        elif fid_val >= MAX_VALID_FIDELITY:  # 비현실적인 값
+            fid_txt = "Invalid"
+            row_class = "table-danger"  # 빨간색
+            ok = False
+        else:
+            fid_txt = f"{fid_val:.3f} %"
+            row_class = "table-success" if ok else "table-warning"
+        
         rows.append(
             html.Tr(
                 [
@@ -249,7 +267,7 @@ def create_summary_table(d: dict[str, Any]) -> dbc.Table:
                     html.Td(fid_txt),
                     html.Td("✓" if ok else "✗"),
                 ],
-                className="table-success" if ok else "table-warning",
+                className=row_class,
             )
         )
 
