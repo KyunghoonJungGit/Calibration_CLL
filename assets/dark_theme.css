@@ -1,0 +1,47 @@
+/* ─────────── Global background & text ─────────── */
+body {                         /* Whole page background */
+    background-color: #1C1C1E;   /* Almost‑black; easy on the eyes */
+    color: #E0E0E0;              /* Light‑gray text for contrast */
+}
+
+/* Cards, tables, dropdown menus */
+.card, .table, .dropdown-menu, .modal-content {
+    background-color: #2A2A2C;   /* Slightly lighter than body */
+    color: #E0E0E0;
+    border-color: #3F3F41;       /* Subtle borders */
+}
+
+/* Table striping */
+.table-striped > tbody > tr:nth-of-type(odd) {
+    --bs-table-accent-bg: #303032;
+}
+
+/* ─────────── Primary buttons & pagination ─────────── */
+.btn-primary,
+.page-item.active .page-link {
+    background-color: #003366;   /* Dark‑blue (navy) */
+    border-color:   #003366;
+}
+.btn-primary:hover,
+.page-item.active .page-link:hover {
+    background-color: #004080;   /* One shade lighter on hover */
+    color: #000000;
+}
+
+/* ─────────── RadioItems readability ─────────── */
+/* Use className="dark-radio" on every RadioItems component */
+.dark-radio input[type="radio"] {
+    accent-color: #003366;       /* Navy check mark */
+}
+.dark-radio label            { color: #C0C0C0; }
+.dark-radio input[type="radio"]:checked + label {
+    color: #E0E0E0; font-weight: 600;
+}
+
+/* ─────────── Plotly outer background ─────────── */
+.js-plotly-plot .plotly {
+    background-color: #2A2A2C;   /* Same as card background */
+}
+
+/* Custom scrollbar thumb color (Edge/Chrome) */
+::-webkit-scrollbar-thumb { background-color: #555; }

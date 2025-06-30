@@ -38,7 +38,7 @@ def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
 
 
 # ────────────────────────────────────────────────────────────────────
-# 1. Data Loading (state or I 지원)
+# 1. Data Loading 
 # ────────────────────────────────────────────────────────────────────
 def load_drag_data(folder: str | Path) -> dict | None:
     """
@@ -146,7 +146,7 @@ def create_summary_figure(d: dict) -> go.Figure:
     fig.update_yaxes(range=[-0.1, 1.1], row=2, col=1)
     fig.update_layout(
         title="DRAG Calibration – per‑qubit results",
-        height=400, showlegend=False, template="plotly_white",
+        height=400, showlegend=False, template="dashboard_dark",
     )
     return fig
 
@@ -221,7 +221,7 @@ def create_drag_plot(d: dict, mode: str = "avg") -> go.Figure:
     fig.update_layout(
         title=f"DRAG Calibration – {title_mode} ({label_z})",
         height=280 * n_rows,
-        template="plotly_white",
+        template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
         coloraxis=dict(colorbar=dict(title=label_z)) if mode == "heat" else None,
@@ -291,10 +291,12 @@ def create_drag_layout(folder: str | Path):
                                 ],
                                 value=init_mode,
                                 inline=True,
+                                className="dark-radio",
                                 inputStyle={
-                                    "margin-right": "8px",      
-                                    "margin-left": "20px",      
-                                    "transform": "scale(1.2)"   
+                                    "margin-right": "8px",
+                                    "margin-left":  "20px",
+                                    "transform":    "scale(1.2)",
+                                    "accentColor":  "#003366",
                                 }
                             )
                         )

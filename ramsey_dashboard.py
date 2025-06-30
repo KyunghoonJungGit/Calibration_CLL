@@ -228,7 +228,7 @@ def create_ramsey_plot(data: dict, var_key: str) -> go.Figure:
     fig.update_layout(
         title=f"Ramsey (T2*) – {ttl_map[var_key]}",
         height=380 * n_rows,
-        template="plotly_white",
+        template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
     )
@@ -293,6 +293,13 @@ def create_ramsey_layout(folder: str | Path):
                                 options=var_opts,
                                 value=default_var,
                                 inline=True,
+                                className="dark-radio",
+                                inputStyle={
+                                    "margin-right": "8px",
+                                    "margin-left":  "20px",
+                                    "transform":    "scale(1.2)",
+                                    "accentColor":  "#003366",
+                                }
                             )
                         )
                     ),

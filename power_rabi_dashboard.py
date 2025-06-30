@@ -183,7 +183,7 @@ def create_prabi_plot(data, var_key):
     fig.update_layout(
         title=f"Power Rabi – {title_var}",
         height=400 * n_rows,
-        template="plotly_white",
+        template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
         coloraxis=dict(colorbar=dict(title=var_key)),
@@ -246,6 +246,13 @@ def create_prabi_layout(folder):
                                 options=var_options,
                                 value=default_var,
                                 inline=True,
+                                className="dark-radio",
+                                inputStyle={
+                                    "margin-right": "8px",
+                                    "margin-left":  "20px",
+                                    "transform":    "scale(1.2)",
+                                    "accentColor":  "#003366",
+                                }
                             )
                         )
                     ), md=12

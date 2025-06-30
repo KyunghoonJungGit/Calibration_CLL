@@ -7,6 +7,8 @@ import dash_bootstrap_components as dbc
 from datetime import datetime
 import os, re
 from pathlib import Path
+import theme
+from dash_bootstrap_templates import load_figure_template
 
 # ────────────────────────────────────────────────────────────────────
 # Import Dash modules for each experiment
@@ -21,13 +23,14 @@ from ramsey_dashboard     import create_ramsey_layout, register_ramsey_callbacks
 from iq_dashboard         import create_iq_layout,    register_iq_callbacks
 from readout_power_opt_dashboard import create_rpo_layout, register_rpo_callbacks
 from drag_dashboard       import create_drag_layout,   register_drag_callbacks
-from rb1q_dashboard       import create_rb_layout,     register_rb_callbacks     # ★ NEW ★
+from rb1q_dashboard       import create_rb_layout,     register_rb_callbacks     
 
 # ────────────────────────────────────────────────────────────────────
 # App instance & global settings
 # ────────────────────────────────────────────────────────────────────
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-EXPERIMENT_BASE_PATH = "./dashboard_data"
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SLATE])
+load_figure_template("SLATE")
+EXPERIMENT_BASE_PATH = "../QPU_project"
 
 # Experiment type metadata ------------------------------------------------
 experiment_modules = {
@@ -92,7 +95,7 @@ experiment_modules = {
         title="DRAG Calibration",
         patterns=["drag", "drag_cal", "dragcal", "drag_calibration"],
     ),
-    "rb1q": dict(                              # ★ NEW ★
+    "rb1q": dict(                             
         layout_func=create_rb_layout,
         register_func=register_rb_callbacks,
         title="1Q Randomized Benchmark",

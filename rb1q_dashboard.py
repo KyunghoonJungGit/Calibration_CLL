@@ -230,7 +230,7 @@ def create_rb_plot(d: dict[str, Any]) -> go.Figure:
     fig.update_layout(
         title="Single‑qubit Randomized‑Benchmarking",
         height=max(250, 270 * n_rows),
-        template="plotly_white",
+        template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
         margin=dict(t=60, l=50, r=30, b=50),

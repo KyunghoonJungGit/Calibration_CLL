@@ -112,7 +112,7 @@ def create_res_plots(data, view="amplitude"):
         fig.update_xaxes(range=[-3, 3], title_text="Detuning [MHz]" if r==n_rows else None, row=r, col=c, showgrid=True)
 
     ttl = "Resonator Spectroscopy – Amplitude + Fit" if view=="amplitude" else "Resonator Spectroscopy – Phase"
-    fig.update_layout(title=ttl, height=280*n_rows, template="plotly_white", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    fig.update_layout(title=ttl, height=280*n_rows, template="dashboard_dark", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig
 
 # --------------------------------------------------------------------
@@ -160,6 +160,13 @@ def create_res_layout(folder):
                                 options=[{"label": " Amplitude", "value": "amplitude"}, {"label": " Phase", "value": "phase"}],
                                 value="amplitude",
                                 inline=True,
+                                className="dark-radio",
+                                inputStyle={
+                                    "margin-right": "8px",
+                                    "margin-left":  "20px",
+                                    "transform":    "scale(1.2)",
+                                    "accentColor":  "#003366",
+                                }
                             )
                         )
                     ),

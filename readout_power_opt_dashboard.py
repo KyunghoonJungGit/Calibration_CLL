@@ -176,7 +176,7 @@ def plot_assignment(d: dict) -> go.Figure:
     fig.update_layout(
         title="Assignment fidelity and non‑outlier probability",
         height=PLOT_H_UNIT["assign"]*n_rows,
-        template="plotly_white",
+        template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
     )
@@ -213,7 +213,7 @@ def plot_confusion(d: dict) -> go.Figure:
         coloraxis=dict(colorbar=dict(title="Prob.")),
         title="g.s. and e.s. fidelity",
         height=PLOT_H_UNIT["conf"]*n_rows,
-        template="plotly_white",
+        template="dashboard_dark",
     )
     return fig
 
@@ -269,7 +269,7 @@ def plot_blob(d: dict) -> go.Figure:
     fig.update_layout(
         title="g.s. and e.s. discriminators (rotated)",
         height=PLOT_H_UNIT["blob"]*n_rows,
-        template="plotly_white",
+        template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
     )
@@ -349,10 +349,12 @@ def create_rpo_layout(folder: str | Path):
                                     ],
                                     value="assign",
                                     inline=True,
+                                    className="dark-radio",
                                     inputStyle={
-                                        "margin-right": "8px",      
-                                        "margin-left": "20px",      
-                                        "transform": "scale(1.2)"   
+                                        "margin-right": "8px",
+                                        "margin-left":  "20px",
+                                        "transform":    "scale(1.2)",
+                                        "accentColor":  "#003366",
                                     }
                                 )
                             )

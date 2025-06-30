@@ -129,7 +129,7 @@ def create_qspec_plot(data, view="rf"):
 
     title = "Qubit Spectroscopy – RF frequency" if view == "rf" else "Qubit Spectroscopy – Detuning / Fit"
     fig.update_layout(title=title, height=400*n_rows,  # Changed from 250 to 400
-                      template="plotly_white",
+                      template="dashboard_dark",
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig
 
@@ -181,6 +181,13 @@ def create_qspec_layout(folder):
                                 ],
                                 value="rf",
                                 inline=True,
+                                className="dark-radio",
+                                inputStyle={
+                                    "margin-right": "8px",
+                                    "margin-left":  "20px",
+                                    "transform":    "scale(1.2)",
+                                    "accentColor":  "#003366",
+                                }
                             )
                         )
                     ),

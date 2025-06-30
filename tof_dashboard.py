@@ -214,7 +214,7 @@ def create_tof_plots(data, view_mode="averaged"):
     fig.update_layout(
         title=f"Time of Flight Calibration – {'Averaged' if view_mode=='averaged' else 'Single'} Run",
         height=300 * n_rows,
-        template="plotly_white",
+        template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     return fig
@@ -289,7 +289,13 @@ def create_tof_layout(folder_path):
                                                     ],
                                                     value="averaged",
                                                     inline=True,
-                                                    className="ms-2",
+                                                    className="dark-radio",
+                                                    inputStyle={
+                                                        "margin-right": "8px",
+                                                        "margin-left":  "20px",
+                                                        "transform":    "scale(1.2)",
+                                                        "accentColor":  "#003366",
+                                                    },
                                                 ),
                                             ],
                                             md=6,

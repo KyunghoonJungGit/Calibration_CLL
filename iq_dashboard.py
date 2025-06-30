@@ -152,7 +152,7 @@ def plotconfusion(data: dict) -> go.Figure:
         coloraxis=dict(colorbar=dict(title="Prob.")),
         title="IQ Readout – Confusion Matrix",
         height=PLOT_HEIGHT_UNIT["conf"] * n_rows,   # Increased height
-        template="plotly_white",
+        template="dashboard_dark",
     )
     return fig
 
@@ -190,7 +190,7 @@ def plothistogram(data: dict) -> go.Figure:
         barmode="overlay",
         title="IQ Readout – Rotated‑I Histograms",
         height=PLOT_HEIGHT_UNIT["hist"] * n_rows,
-        template="plotly_white",
+        template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     return fig
@@ -229,7 +229,7 @@ def plotblob(data: dict) -> go.Figure:
     fig.update_layout(
         title="IQ Readout – Rotated‑IQ Blob",
         height=PLOT_HEIGHT_UNIT["blob"] * n_rows,
-        template="plotly_white",
+        template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     return fig
@@ -313,10 +313,12 @@ def create_iq_layout(folder: str | Path):
                                     ],
                                     value="conf",
                                     inline=True,
+                                    className="dark-radio",
                                     inputStyle={
-                                        "margin-right": "8px",      # 동그라미와 텍스트 사이 간격
-                                        "margin-left": "20px",      # 동그라미 왼쪽 여백
-                                        "transform": "scale(1.2)"   # 동그라미 크기 조정 (선택사항)
+                                        "margin-right": "8px",
+                                        "margin-left":  "20px",
+                                        "transform":    "scale(1.2)",
+                                        "accentColor":  "#003366",
                                     }
                                 )
                             )
