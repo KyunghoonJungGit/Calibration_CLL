@@ -166,7 +166,7 @@ def create_drag_plot(d: dict, mode: str = "avg") -> go.Figure:
     fig = subplots.make_subplots(
         rows=n_rows, cols=n_cols,
         subplot_titles=[str(q) for q in qbs],
-        vertical_spacing=0.08, horizontal_spacing=0.07,
+        vertical_spacing=0.03, horizontal_spacing=0.07,
     )
 
     show_cbar = True
@@ -197,7 +197,7 @@ def create_drag_plot(d: dict, mode: str = "avg") -> go.Figure:
             x = alpha if alpha.ndim == 1 else alpha[i]
             z = Z_hm[i]                                  # (P, A)
             fig.add_trace(
-                go.Heatmap(x=x, y=nb_p, z=z,
+                go.Heatmap(x=x, y=nb_p[::-1], z=z[::-1],
                            coloraxis="coloraxis",
                            showscale=show_cbar),
                 row=row, col=col,

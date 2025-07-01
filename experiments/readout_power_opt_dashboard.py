@@ -29,7 +29,7 @@ from pathlib import Path
 # Global: layout/sizing
 # ────────────────────────────────────────────────────────────────────
 N_COLS = 2                   # All subplot column count
-PER_PAGE = 8                 # 2 columns × 4 rows
+PER_PAGE = 16                # 2 columns × 8 rows
 PLOT_H_UNIT = {              # Fixed height per row (px)  ── adjust if needed
     "assign": 340,
     "conf":   260,
@@ -199,7 +199,7 @@ def plot_confusion(d: dict) -> go.Figure:
                       [d["eg"][i], d["ee"][i]]])
         txt = np.vectorize(lambda p:f"{p*100:.1f}%")(z)
         fig.add_trace(go.Heatmap(
-            z=z, text=txt, texttemplate="%{text}",
+            z=z[::-1], text=txt[::-1], texttemplate="%{text}",
             textfont=dict(size=18),
             coloraxis="coloraxis", showscale=i==0, zmin=0, zmax=1),
             row=row, col=col)

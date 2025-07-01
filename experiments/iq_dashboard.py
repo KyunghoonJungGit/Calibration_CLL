@@ -1,14 +1,16 @@
 # ======================================================================
-#  iq_dashboard.py   (FULL / NEW FILE)      v2025‑06‑22 p1
+#  iq_dashboard.py
 # ======================================================================
 """
-Dash module for IQ‑discrimination / Readout‑fidelity experiments
-(Updated: 2‑col layout + pagination + font/size enlargement)
-
-Author : (Author Name)
-Date   : 2025‑06‑22
+Dash module for **IQ‑Discrimination / Readout‑Fidelity** analysis
+=================================================================
+Views  :
+  • Confusion‑matrix  (2×2 per qubit)  
+  • Rotated‑I histograms with dual thresholds  
+  • Rotated‑IQ “blob” scatter (optional pagination)
+All views share 2‑column × N‑row layout with automatic pagination.
+--------------------------------------------------------------------
 """
-
 from __future__ import annotations
 import dash
 from dash import dcc, html, Input, Output, State, MATCH
@@ -24,7 +26,7 @@ from pathlib import Path
 # 0. Global settings (rows·cols, pagination, size)
 # ────────────────────────────────────────────────────────────────────
 N_COLS             = 2      # Common number of columns for all views
-PER_PAGE           = 8      # Maximum qubits per page (2 cols × 4 rows)
+PER_PAGE           = 16     # Maximum qubits per page (2 cols × 8 rows)
 PLOT_HEIGHT_UNIT = {        # Height per row [px]  ### TUNE HERE
     "conf": 360,            # confusion‑matrix
     "hist": 360,            # histogram
@@ -137,9 +139,9 @@ def plotconfusion(data: dict) -> go.Figure:
         txt = np.vectorize(lambda x: f"{x*100:.1f}%")(z)
         fig.add_trace(
             go.Heatmap(
-                z=z, text=txt, texttemplate="%{text}",
-                textfont={"size": 18},                 # Enlarged number font
-                colorscale="Viridis", zmin=0, zmax=1,
+                z=z[::-1], text=txt[::-1], texttemplate="%{text}",
+                textfont={"size": 18},                 
+                colorscale="Greys", zmin=0, zmax=1,
                 showscale=(idx == 0), coloraxis="coloraxis"),
             row=row, col=col,
         )
@@ -151,7 +153,7 @@ def plotconfusion(data: dict) -> go.Figure:
     fig.update_layout(
         coloraxis=dict(colorbar=dict(title="Prob.")),
         title="IQ Readout – Confusion Matrix",
-        height=PLOT_HEIGHT_UNIT["conf"] * n_rows,   # Increased height
+        height=PLOT_HEIGHT_UNIT["conf"] * n_rows,  
         template="dashboard_dark",
     )
     return fig
@@ -300,31 +302,31 @@ def create_iq_layout(folder: str | Path):
 
             # ── View selection + Page selection ─────────────────
             dbc.Row(
-                [
-                    dbc.Col(
-                        dbc.Card(
-                            dbc.CardBody(
-                                dcc.RadioItems(
-                                    id={"type": "iq-view", "index": uid},
-                                    options=[
-                                        {"label": " Confusion Mtx", "value": "conf"},
-                                        {"label": " Histogram",     "value": "hist"},
-                                        {"label": " Scatter (blob)", "value": "blob"},
-                                    ],
-                                    value="conf",
-                                    inline=True,
-                                    className="dark-radio",
-                                    inputStyle={
-                                        "margin-right": "8px",
-                                        "margin-left":  "20px",
-                                        "transform":    "scale(1.2)",
-                                        "accentColor":  "#003366",
-                                    }
-                                )
-                            )
-                        ), md=8),
-                    dbc.Col(page_selector, md=4, className="d-flex align-items-center justify-content-end"),
-                ],
+                dbc.Col(
+                    dbc.Row([
+                        dbc.Col(page_selector, width="auto"),
+                        dbc.Col(
+                            dcc.RadioItems(
+                                id={"type": "iq-view", "index": uid},
+                                options=[
+                                    {"label": " Confusion Mtx", "value": "conf"},
+                                    {"label": " Histogram",     "value": "hist"},
+                                    {"label": " Scatter (blob)", "value": "blob"},
+                                ],
+                                value="conf",
+                                inline=True,
+                                className="dark-radio",
+                                inputStyle={
+                                    "margin-right": "8px",
+                                    "margin-left":  "20px",
+                                    "transform":    "scale(1.2)",
+                                    "accentColor":  "#003366",
+                                }
+                            ),
+                            width="auto"
+                        ),
+                    ], className="align-items-center g-2"),
+                ),
                 className="mb-3",
             ),
 

@@ -1,6 +1,3 @@
-# ======================================================================
-#  main_dashboard.py   (FULL / REPLACEMENT  – RB module included)
-# ======================================================================
 import dash
 from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
@@ -13,22 +10,25 @@ from dash_bootstrap_templates import load_figure_template
 # ────────────────────────────────────────────────────────────────────
 # Import Dash modules for each experiment
 # ────────────────────────────────────────────────────────────────────
-from tof_dashboard        import create_tof_layout,   register_tof_callbacks
-from resonator_dashboard  import create_res_layout,   register_res_callbacks
-from qspec_dashboard      import create_qspec_layout, register_qspec_callbacks
-from power_rabi_dashboard import create_prabi_layout, register_prabi_callbacks
-from t1_dashboard         import create_t1_layout,    register_t1_callbacks
-from echo_dashboard       import create_echo_layout,  register_echo_callbacks
-from ramsey_dashboard     import create_ramsey_layout, register_ramsey_callbacks
-from iq_dashboard         import create_iq_layout,    register_iq_callbacks
-from readout_power_opt_dashboard import create_rpo_layout, register_rpo_callbacks
-from drag_dashboard       import create_drag_layout,   register_drag_callbacks
-from rb1q_dashboard       import create_rb_layout,     register_rb_callbacks     
+from experiments.tof_dashboard        import create_tof_layout,   register_tof_callbacks
+from experiments.resonator_dashboard  import create_res_layout,   register_res_callbacks
+from experiments.qspec_dashboard      import create_qspec_layout, register_qspec_callbacks
+from experiments.power_rabi_dashboard import create_prabi_layout, register_prabi_callbacks
+from experiments.t1_dashboard         import create_t1_layout,    register_t1_callbacks
+from experiments.echo_dashboard       import create_echo_layout,  register_echo_callbacks
+from experiments.ramsey_dashboard     import create_ramsey_layout, register_ramsey_callbacks
+from experiments.iq_dashboard         import create_iq_layout,    register_iq_callbacks
+from experiments.readout_power_opt_dashboard import create_rpo_layout, register_rpo_callbacks
+from experiments.drag_dashboard       import create_drag_layout,   register_drag_callbacks
+from experiments.rb1q_dashboard       import create_rb_layout,     register_rb_callbacks     
 
 # ────────────────────────────────────────────────────────────────────
 # App instance & global settings
 # ────────────────────────────────────────────────────────────────────
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SLATE])
+# app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SLATE])
+app = dash.Dash(__name__, 
+                external_stylesheets=[dbc.themes.SLATE, "/assets/dark_theme.css"],
+                assets_folder="assets")
 load_figure_template("SLATE")
 EXPERIMENT_BASE_PATH = "../QPU_project"
 
@@ -179,42 +179,72 @@ app.layout = dbc.Container(
         dcc.Store(id="current-experiments", data={}),
         dcc.Interval(id="folder-check-interval", interval=5000, n_intervals=0),
 
-        dbc.Row(dbc.Col(html.H1("Qubit Calibration Dashboard",
-                                className="text-center mb-4"))),
+        # ── Black top-bar with logo  ───────────────────────
+        html.Div(
+            # ─── container is position:relative so its children can be absolutely positioned ───
+            style={
+                "position":       "relative",
+                "height":         "80px",
+                "backgroundColor":"#000000",
+            },
+            children=[
+                # ── Logo always stuck to the left, vertically centred ──
+                html.Img(
+                    src=app.get_asset_url("qm_logo.png"),
+                    style={
+                        "position":   "absolute",
+                        "left":       "20px",
+                        "top":        "50%",
+                        "transform":  "translateY(-50%)",
+                        "height":     "60px",
+                    },
+                ),
+
+                # ── Title always centred in the bar ──
+                html.H1(
+                    "QUAlibrate Dashboard",
+                    style={
+                        "position":  "absolute",
+                        "top":       "50%",
+                        "left":      "50%",
+                        "transform": "translate(-50%, -50%)",
+                        "margin":    "0",
+                        "color":     "#FFFFFF",
+                        "fontSize":  "32px",
+                    },
+                    className="text-center",
+                ),
+            ],
+        ),
+
+
         dbc.Row(dbc.Col(html.Div(id="alert-container")), className="mb-3"),
 
         dbc.Card(
             dbc.CardBody(
-                dbc.Row(
-                    [
-                        dbc.Col(
-                            [
-                                html.H5("Experiment Selection"),
+                [
+                    html.H5("Experiment Selection"),
+                    dbc.Row(                                             
+                        [
+                            dbc.Col(
                                 dcc.Dropdown(
                                     id="experiment-type-dropdown",
                                     placeholder="Select experiment type",
-                                    className="mb-2",
                                 ),
+                                md=6,
+                            ),
+                            dbc.Col(
                                 dcc.Dropdown(
                                     id="experiment-folder-dropdown",
                                     placeholder="Select experiment folder",
                                     disabled=True,
                                 ),
-                            ],
-                            md=8,
-                        ),
-                        dbc.Col(
-                            dbc.Button(
-                                "Refresh",
-                                id="refresh-button",
-                                color="primary",
-                                className="mt-4 w-100",
-                                size="lg",
+                                md=6,
                             ),
-                            md=4,
-                        ),
-                    ]
-                )
+                        ],
+                        className="g-2",
+                    ),
+                ]
             ),
             className="mb-4",
         ),
@@ -228,7 +258,8 @@ app.layout = dbc.Container(
 # 3. Callbacks
 # ────────────────────────────────────────────────────────────────────
 @app.callback(
-    [Output("alert-container", "children"), Output("current-experiments", "data")],
+    [Output("alert-container", "children"),
+     Output("current-experiments", "data")],
     Input("folder-check-interval", "n_intervals"),
     State("current-experiments", "data"),
 )
@@ -240,7 +271,8 @@ def poll_folder(_, cur):
             added = {e["name"] for e in lst} - {e["name"] for e in cur.get(typ, [])}
             if added:
                 alert = dbc.Alert(
-                    f"New {experiment_modules[typ]['title']} experiment found: {', '.join(sorted(added))}",
+                    f"New {experiment_modules[typ]['title']} experiment found: "
+                    f"{', '.join(sorted(added))}",
                     color="info",
                     dismissable=True,
                     duration=10000,
@@ -252,12 +284,11 @@ def poll_folder(_, cur):
 @app.callback(
     [Output("experiment-type-dropdown", "options"),
      Output("experiment-type-dropdown", "value")],
-    [Input("refresh-button", "n_clicks"),
-     Input("current-experiments", "modified_timestamp")],
-    [State("current-experiments", "data"),
-     State("experiment-type-dropdown", "value")],
+    Input("current-experiments", "modified_timestamp"),          
+    State("current-experiments", "data"),
+    State("experiment-type-dropdown", "value"),
 )
-def update_type_options(_, __, data, cur):
+def update_type_options(_, data, cur):
     if not data:
         return [], None
     opts = [
@@ -283,8 +314,10 @@ def update_folder_options(typ, data):
         return [], True, None
     opts = [
         dict(
-            label=f"{e['name']} ({e['date_folder']} – "
-                  f"{datetime.fromtimestamp(e['timestamp']).strftime('%H:%M:%S')})",
+            label=(
+                f"{e['name']} ({e['date_folder']} – "
+                f"{datetime.fromtimestamp(e['timestamp']).strftime('%H:%M:%S')})"
+            ),
             value=e["path"],
         )
         for e in data[typ]
@@ -299,12 +332,15 @@ def update_folder_options(typ, data):
 )
 def display_experiment(path, typ):
     if not path or not typ:
-        return html.Div("Please select an experiment.", className="text-center text-muted mt-5")
+        return html.Div(
+            "Please select an experiment.",
+            className="text-center text-muted mt-5",
+        )
     return experiment_modules[typ]["layout_func"](path)
 
 
 # ────────────────────────────────────────────────────────────────────
-# Register callbacks for each module
+# Register callbacks for each module (unchanged)
 # ────────────────────────────────────────────────────────────────────
 register_tof_callbacks(app)
 register_res_callbacks(app)
@@ -316,12 +352,11 @@ register_ramsey_callbacks(app)
 register_iq_callbacks(app)
 register_rpo_callbacks(app)
 register_drag_callbacks(app)
-register_rb_callbacks(app)          
-
+register_rb_callbacks(app)
 
 # ────────────────────────────────────────────────────────────────────
-# 4. run
+# 4. Run
 # ────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("[main] first scan:", find_experiments(EXPERIMENT_BASE_PATH))
-    app.run(debug=True, port=7700)
+    app.run(debug=False, port=7700)

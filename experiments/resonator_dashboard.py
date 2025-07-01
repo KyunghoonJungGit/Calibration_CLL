@@ -1,3 +1,14 @@
+# ======================================================================
+#  resonator_dashboard.py   
+# ======================================================================
+"""
+Dash module for **Readout‑Resonator Spectroscopy** experiments
+==============================================================
+* Sweeps RF detuning → plots |IQ| amplitude or phase per qubit
+* Optional Lorentzian fit overlay (resonance frequency & FWHM)
+* Grid layout: 4 columns × N rows for large qubit counts
+--------------------------------------------------------------------
+"""
 import dash
 from dash import dcc, html, Input, Output, State, MATCH
 import dash_bootstrap_components as dbc

@@ -187,7 +187,7 @@ def create_t1_plot(data, var_key):
     title_map = {"I": "I‑quadrature", "Q": "Q‑quadrature", "amp": "|IQ| magnitude"}
     fig.update_layout(
         title=f"T1 Relaxation – {title_map[var_key]}",
-        height=280 * n_rows,
+        height=350 * n_rows,
         template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),

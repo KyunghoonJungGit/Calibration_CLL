@@ -151,7 +151,7 @@ def create_prabi_plot(data, var_key):
             z = da.transpose("nb_of_pulses", "amp_prefactor").values  # (P, A)
 
             hm = go.Heatmap(
-                x=x_amp, y=nb_pulses, z=z,
+                x=x_amp, y=nb_pulses, z=z[::-1],
                 coloraxis="coloraxis", showscale=show_cbar,
             )
             fig.add_trace(hm, row=row, col=col)

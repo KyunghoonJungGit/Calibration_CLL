@@ -1,3 +1,15 @@
+# ======================================================================
+#  qspec_dashboard.py   
+# ======================================================================
+"""
+Dash module for **Qubit Spectroscopy** experiments
+==================================================
+* Displays rotated‑I response vs RF frequency **or** vs detuning
+* Overlays Lorentzian fit (res freq, width, π‑pulse amplitude)
+* Scales to many qubits with 2‑column × N‑row subplots
+--------------------------------------------------------------------
+"""
+
 import dash
 from dash import dcc, html, Input, Output, State, MATCH
 import dash_bootstrap_components as dbc

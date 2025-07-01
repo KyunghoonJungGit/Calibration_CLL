@@ -28,9 +28,9 @@ import plotly.subplots as subplots
 # ────────────────────────────────────────────────────────────────────
 # 0. Common utilities
 # ────────────────────────────────────────────────────────────────────
-PER_PAGE = 8            # qubits per page
+PER_PAGE = 16           # qubits per page
 N_COLS   = 2            # subplot columns
-MAX_VALID_FIDELITY = 99.9995  # 이 값 이상은 비현실적인 값으로 간주
+MAX_VALID_FIDELITY = 99.999999  # This value is considered unrealistic
 
 
 def open_xr_dataset(path: str, engines=("h5netcdf", "netcdf4", None)) -> xr.Dataset:
@@ -182,7 +182,7 @@ def create_rb_plot(d: dict[str, Any]) -> go.Figure:
     fig = subplots.make_subplots(
         rows=n_rows, cols=N_COLS,
         subplot_titles=[str(q) for q in qbs],
-        vertical_spacing=0.08, horizontal_spacing=0.07,
+        vertical_spacing=0.03, horizontal_spacing=0.07,
     )
 
     for i, q in enumerate(qbs):
@@ -229,7 +229,7 @@ def create_rb_plot(d: dict[str, Any]) -> go.Figure:
 
     fig.update_layout(
         title="Single‑qubit Randomized‑Benchmarking",
-        height=max(250, 270 * n_rows),
+        height=max(250, 380*n_rows),
         template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
@@ -247,14 +247,10 @@ def create_summary_table(d: dict[str, Any]) -> dbc.Table:
         
         ok = bool(d["success"][i])
         
-        # RB fidelity 값 처리
         fid_val = d["rb_fidelity"][i]
-        if np.isnan(fid_val):
-            fid_txt = "—"
-            row_class = "table-warning"
-        elif fid_val >= MAX_VALID_FIDELITY:  # 비현실적인 값
-            fid_txt = "Invalid"
-            row_class = "table-danger"  # 빨간색
+        if np.isnan(fid_val) | (fid_val >= MAX_VALID_FIDELITY):
+            fid_txt = "-"
+            row_class = "table-warning" 
             ok = False
         else:
             fid_txt = f"{fid_val:.3f} %"

@@ -1,3 +1,16 @@
+# ======================================================================
+#  tof_dashboard.py   
+# ======================================================================
+"""
+Dash module for **Time‑of‑Flight (TOF)** calibration experiments
+===============================================================
+* Plots averaged / single‑shot ADC I‑ and Q‑traces vs read‑out time
+* Identifies TOF delay & threshold; draws per‑qubit vertical markers
+* Multi‑qubit support with 2‑column × N‑row responsive layout
+--------------------------------------------------------------------
+"""
+
+
 import dash
 from dash import dcc, html, Input, Output, State, MATCH
 import dash_bootstrap_components as dbc
@@ -9,9 +22,6 @@ import json
 import os
 from pathlib import Path
 
-# -------------------------------------------------------------------
-#  NEW: Utility to safely open H5 files
-# -------------------------------------------------------------------
 def open_xr_dataset(path, engines=("h5netcdf", "netcdf4", None)):
     """
     Try xarray.open_dataset with multiple engines.
@@ -213,7 +223,7 @@ def create_tof_plots(data, view_mode="averaged"):
 
     fig.update_layout(
         title=f"Time of Flight Calibration – {'Averaged' if view_mode=='averaged' else 'Single'} Run",
-        height=300 * n_rows,
+        height=400 * n_rows,
         template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
