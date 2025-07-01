@@ -182,7 +182,7 @@ def register_myexp_callbacks(app: dash.Dash):
        layout_func   = create_myexp_layout,
        register_func = register_myexp_callbacks,
        title         = "My Experiment",
-       patterns      = ["myexp", "my_exp", "whatever_in_folder_name"], → these keywords for filtering folders
+       patterns      = ["myexp", "my_exp", "whatever_in_folder_name"], → keywords to search for folders
    ),
    ```
 
@@ -192,7 +192,7 @@ def register_myexp_callbacks(app: dash.Dash):
    register_myexp_callbacks(app)
    ```
 
-Done – the dashboard will now auto‑detect any folder whose name contains one of your `patterns` tokens and supplies the expected data files.
+> Auto-reload: the dashboard will now auto‑detect any folder whose name contains one of your `patterns` keywords.
 
 ---
 
