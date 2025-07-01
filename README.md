@@ -69,21 +69,15 @@ pandas>=2.2
 
 3. **Point** the app at your experiment archive
 
-   * The default base folder is `../QPU_project` (relative to `main_dashboard.py`).
+   * The default base folder is `../QPU_project` (**Note** relative path to `main_dashboard.py`).
    * Adjust it by **either**:
-     *setting an env‑var*:
-
-     ```bash
-     export QUALIBRATE_DATA=/abs/path/to/experiments
-     ```
-
-     and editing the single line
+     Editing the line,
 
      ```python
-     EXPERIMENT_BASE_PATH = os.environ.get("QUALIBRATE_DATA", "../QPU_project")
+     EXPERIMENT_BASE_PATH = "../QPU_project"
      ```
 
-     *or simply editing* that variable in `main_dashboard.py`.
+     in `main_dashboard.py`.
 
 4. **Launch** the server
 
@@ -112,7 +106,6 @@ pandas>=2.2
 ```text
 experiments/
 ├─ myexperiment_dashboard.py      ◀─ your new file
-├─ __init__.py                    (empty / optional)
 ```
 
 ### 4.1 Skeleton to copy‑paste
