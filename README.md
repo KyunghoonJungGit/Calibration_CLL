@@ -21,8 +21,8 @@ It lets you explore *Time‑of‑Flight*, *Resonator & Qubit spectroscopy*, *Rab
 > **TL;DR – conda users**
 
 ```bash
-conda create -n qualibrate python=3.11
-conda activate qualibrate
+conda create -n qualib_dash python=3.12
+conda activate qualib_dash
 pip install -r requirements.txt
 ```
 
@@ -30,27 +30,10 @@ pip install -r requirements.txt
 
 | Tool                    | Version    | Why                         |
 | ----------------------- | ---------- | --------------------------- |
-| Python                  | 3.9 – 3.12 | Tested on 3.11              |
-| Git                     | any        | clone the repo              |
-| (optional) Conda / venv | –          | for an isolated environment |
-
-### 2.2 `requirements.txt`
-
-The file already lists the exact wheels:
-
-```
-dash==2.17.*
-dash-bootstrap-components>=1.6
-dash-bootstrap-templates>=1.1
-plotly>=5.22
-xarray[h5netcdf,netcdf4]>=2024.3
-numpy>=1.26
-pandas>=2.2
-```
+| Python                  | 3.9 – 3.12 | Tested on 3.12              |
 
 > **Note**
 >
-> * **HDF5 back‑ends** are pulled in via the `xarray[...]` extras.
 > * If you prefer **Mambaforge**, replace the `pip install` step with
 >   `mamba env create -f environment.yml` (not supplied, but you can export one with `pip‑compile`).
 
@@ -79,6 +62,28 @@ pandas>=2.2
 
      in `main_dashboard.py`.
 
+    * ★ Data Folder Structure
+      Your calibration data should live under a top-level folder (configured via `EXPERIMENT_BASE_PATH`) with the following layout:
+
+        EXPERIMENT_BASE_PATH/
+        ├── 2025-06-23/ ← date folder: YYYY-MM-DD
+        │ ├── #1093_00_hello_qua_112953/ ← experiment folder: #<runID>_<type>_<timestamp>
+        │ │ ├── ds_raw.h5
+        │ │ ├── ds_fit.h5
+        │ │ ├── data.json
+        │ │ └── node.json
+
+    - **Date folders** (`YYYY-MM-DD`) group all experiments run on that day.  
+    - **Experiment folders** begin with `#<numeric_id>`, contain a slug describing the calibration type, and end with a 6-digit time stamp.  
+    - **Within each experiment folder** you **must** have exactly these four files:  
+    1. `ds_raw.h5`  
+    2. `ds_fit.h5`  
+    3. `data.json`  
+    4. `node.json`  
+
+    Dash will only show folders matching that pattern and containing all four files.  
+
+
 4. **Launch** the server
 
    ```bash
@@ -90,7 +95,7 @@ pandas>=2.2
 
    1. Choose an **experiment type** from the first dropdown (Time‑of‑Flight, T1, RB, …).
    2. Pick a **date/time‑stamped run** from the second dropdown.
-   3. Enjoy the reactive plots, summary tables, pagination and dark theme ✨.
+   3. Enjoy the reactive plots, summary tables, pagination and dark theme.
 
 5. **Troubleshooting**
 
