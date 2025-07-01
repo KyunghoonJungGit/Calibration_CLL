@@ -45,35 +45,42 @@ pip install -r requirements.txt
 
 3. **Point** the app at your experiment archive
 
-   * The default base folder is `../QPU_project` (**Note** relative path to `main_dashboard.py`).
-   * Adjust it by **either**:
-     Editing the line,
+   - **Default base folder**  
+     The app looks in `../QPU_project` (relative to `main_dashboard.py`) by default:
 
      ```python
      EXPERIMENT_BASE_PATH = "../QPU_project"
      ```
 
-     in `main_dashboard.py`.
+   - **To change it**, simply edit that line in `main_dashboard.py` to your desired path.
 
-    * ★ Data Folder Structure: your calibration data should live under a top-level folder (configured via `EXPERIMENT_BASE_PATH`) with the following layout:
+   - **Data folder structure**  
+     Your calibration data must live under `EXPERIMENT_BASE_PATH` with this layout:
 
-        EXPERIMENT_BASE_PATH/
-        ├── 2025-06-23/ ← date folder: YYYY-MM-DD
-        │ ├── #1093_00_hello_qua_112953/ ← experiment folder: #<runID>_<type>_<timestamp>
-        │ │ ├── ds_raw.h5
-        │ │ ├── ds_fit.h5
-        │ │ ├── data.json
-        │ │ └── node.json
+     ```text
+     EXPERIMENT_BASE_PATH/
+     ├─ 2025-06-23/                     # date folder: YYYY-MM-DD
+     │   ├─ #1093_00_hello_qua_112953/  # experiment folder: #<runID>_<type>_<timestamp>
+     │   │   ├─ ds_raw.h5
+     │   │   ├─ ds_fit.h5
+     │   │   ├─ data.json
+     │   │   └─ node.json
+     │   ├─ #1094_01b_time_of_flight…/
+     │   ├─ #1095_01b_time_of_flight…/
+     │   └─ … (other experiments)
+     ├─ 2025-06-24/
+     │   └─ #1100_readout_frequency_…/
+     └─ 2025-06-25 ...
+     ```
 
-    - **Date folders** (`YYYY-MM-DD`) group all experiments run on that day.  
-    - **Experiment folders** begin with `#<numeric_id>`, contain a slug describing the calibration type, and end with a 6-digit time stamp.  
-    - **Within each experiment folder** you **must** have exactly these four files:  
-    1. `ds_raw.h5`  
-    2. `ds_fit.h5`  
-    3. `data.json`  
-    4. `node.json`  
-
-    Dash will only show folders matching that pattern and containing all four files.  
+     - **Date folders** (`YYYY-MM-DD`) group all runs from that day.  
+     - **Experiment folders** must contain exactly four files:
+       1. `ds_raw.h5`  
+       2. `ds_fit.h5`  
+       3. `data.json`  
+       4. `node.json`  
+     - Folder names **must** start with `#<numeric_id>` and end with a 6-digit timestamp.  
+     - Dash will only display folders matching this pattern **and** containing all four files.
 
 
 4. **Launch** the server
