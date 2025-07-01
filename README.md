@@ -10,10 +10,8 @@ It lets you explore relevant experiments from one browser tab.
 | Topic              | Details                                                                                                                                                                                                                                                                      |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Purpose**        | Provide a uniform, low‑friction UI for *analysts, experimentalists and operators* to inspect the raw data, fitted curves, and summary tables that come out of daily calibration runs on a superconducting‑qubit platform.                                                    |
-| **Input data**     | Each experiment folder contains four required files produced by the data‑acquisition back‑end: `ds_raw.h5`, `ds_fit.h5`, `data.json`, `node.json`  *(plus optional extras such as `ds_iq_blobs.h5`)*.                                                                        |
-| **Core idea**      | **One experiment = one lightweight Dash module** living under `experiments/<name>_dashboard.py`.  The top‑level `main_dashboard.py` automatically discovers experiment folders, loads the correct module, and injects its *layout* and *callbacks* into the main Dash `app`. |
-| **Why it matters** | You get publication‑quality plots with dark‑mode styling, “choose‑your‑metric” radio buttons, pagination for 100+ qubits, and **zero** copy‑and‑paste between notebooks.  Plus it is trivial to bolt on new experiment types (see § 4).                                      |
-
+| **Input data**     | Each experiment folder contains four required files produced by the data‑acquisition back‑end: `ds_raw.h5`, `ds_fit.h5`, `data.json`, `node.json`                                                                    |
+| **Core idea**      | **One experiment = one Dash .py file** living under `experiments/<name>_dashboard.py`.  The top‑level `main_dashboard.py` automatically discovers experiment folders, loads the correct module, and injects its *layout* and *callbacks* into the main Dash `app`. |
 ---
 
 ## 2 · Build the Python environment
