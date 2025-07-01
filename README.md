@@ -1,7 +1,7 @@
 # QUAlibrate Dashboard
 
-A **Dash + Plotly** web application for **interactive visualization of quantum‑hardware calibration experiments**.
-It lets you explore *Time‑of‑Flight*, *Resonator & Qubit spectroscopy*, *Rabi / DRAG / T1 / T2 calibrations*, *single‑qubit RB*, and more, all from one browser tab.
+A **Dash + Plotly** web application for **QUAlibration Experimental Data**.
+It lets you explore relevant experiments from one browser tab.
 
 ---
 
