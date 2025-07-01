@@ -109,7 +109,7 @@ pip install -r requirements.txt
 
 ```text
 experiments/
-├─ myexperiment_dashboard.py      ◀─ your new file
+├─ myexperiment_dashboard.py      ◀─ sdd your new experiment file
 ```
 
 ### 4.1 Skeleton to copy‑paste
@@ -181,8 +181,8 @@ def register_myexp_callbacks(app: dash.Dash):
    "myexp": dict(
        layout_func   = create_myexp_layout,
        register_func = register_myexp_callbacks,
-       title         = "My Cool Experiment",
-       patterns      = ["myexp", "cool_exp", "whatever_in_folder_name"],
+       title         = "My Experiment",
+       patterns      = ["myexp", "my_exp", "whatever_in_folder_name"], → these keywords for filtering folders
    ),
    ```
 
