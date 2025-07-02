@@ -29,6 +29,8 @@ from experiments.rb1q_dashboard       import create_rb_layout,     register_rb_c
 app = dash.Dash(__name__, 
                 external_stylesheets=[dbc.themes.SLATE, "/assets/dark_theme.css"],
                 assets_folder="assets")
+server = app.server
+
 load_figure_template("SLATE")
 EXPERIMENT_BASE_PATH = "./data/QPU_project"
 

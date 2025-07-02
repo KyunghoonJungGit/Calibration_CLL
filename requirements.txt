@@ -6,3 +6,4 @@ plotly==6.2.0
 xarray==2025.6.1
 netcdf4==1.7.2
 h5netcdf==1.6.3
+gunicorn
