@@ -281,6 +281,18 @@ app.layout = dbc.Container(
                         html.Strong("Environment Variable: "), 
                         html.Code(os.environ.get("EXPERIMENT_BASE_PATH", "Not set"), style={"color": "#a8e6cf", "backgroundColor": "#2d2d2d"})
                     ]),
+                    html.P([
+                    html.Strong("os.path.isdir(): "), 
+                    html.Code(str(os.path.isdir(EXPERIMENT_BASE_PATH)))
+                    ]),
+                    html.P([
+                        html.Strong("os.access (readable): "), 
+                        html.Code(str(os.access(EXPERIMENT_BASE_PATH, os.R_OK)) if os.path.exists(EXPERIMENT_BASE_PATH) else "Path not found")
+                    ]),
+                    html.P([
+                        html.Strong("pathlib.Path.exists(): "), 
+                        html.Code(str(Path(EXPERIMENT_BASE_PATH).exists()))
+                    ]),
                     html.Hr(),
                     
                     html.H6("📂 Directory Explorer", className="text-info"),
