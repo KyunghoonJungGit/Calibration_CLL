@@ -11,8 +11,6 @@ Dash module for **Readout‑Power‑Optimization** experiments
 * ≥10 qubits support, 2 columns × N rows pagination (1 page = 8 qubits)
 * Data structure : ds_raw.h5, ds_fit.h5, data.json, node.json (+ ds_iq_blobs.h5 optional)
 --------------------------------------------------------------------
-Author : (Author name)
-Date   : 2025‑06‑22
 """
 from __future__ import annotations
 import dash
@@ -35,7 +33,7 @@ PLOT_H_UNIT = {              # Fixed height per row (px)  ── adjust if neede
     "conf":   260,
     "blob":   360,
 }
-V_SPACE = 0.12               # Subplot vertical spacing
+V_SPACE = 0.04               # Subplot vertical spacing
 H_SPACE = 0.07               # Subplot horizontal spacing
 
 # ────────────────────────────────────────────────────────────────────

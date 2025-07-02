@@ -30,7 +30,7 @@ app = dash.Dash(__name__,
                 external_stylesheets=[dbc.themes.SLATE, "/assets/dark_theme.css"],
                 assets_folder="assets")
 load_figure_template("SLATE")
-EXPERIMENT_BASE_PATH = "../QPU_project"
+EXPERIMENT_BASE_PATH = "./data/QPU_project"
 
 # Experiment type metadata ------------------------------------------------
 experiment_modules = {

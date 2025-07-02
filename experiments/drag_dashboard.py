@@ -9,8 +9,6 @@ Dash module for **DRAG‑coefficient calibration** experiments
 * Summary    : per‑qubit optimal α  +  fit‑success
 * Support  ≥10 qubits with 2‑column × N‑row scrollable layout
 --------------------------------------------------------------------
-Author : (Author Name)
-Updated: 2025‑06‑23
 """
 from __future__ import annotations
 import dash
@@ -197,7 +195,7 @@ def create_drag_plot(d: dict, mode: str = "avg") -> go.Figure:
             x = alpha if alpha.ndim == 1 else alpha[i]
             z = Z_hm[i]                                  # (P, A)
             fig.add_trace(
-                go.Heatmap(x=x, y=nb_p[::-1], z=z[::-1],
+                go.Heatmap(x=x, y=nb_p, z=z[::-1],
                            coloraxis="coloraxis",
                            showscale=show_cbar),
                 row=row, col=col,
@@ -224,11 +222,10 @@ def create_drag_plot(d: dict, mode: str = "avg") -> go.Figure:
         template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
-        coloraxis=dict(colorbar=dict(title=label_z)) if mode == "heat" else None,
+        coloraxis=dict(colorbar=dict(title=label_z), colorscale="Viridis") if mode == "heat" else None,
     )
     return fig
-
-
+                  
 # ────────────────────────────────────────────────────────────────────
 # 3. Summary Table
 # ────────────────────────────────────────────────────────────────────

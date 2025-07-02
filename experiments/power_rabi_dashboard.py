@@ -5,8 +5,6 @@ Dash module for **Power‑Rabi** calibration experiments
 * 2‑D  : nb_of_pulses length ≥ 2 –> Heat‑map (colormesh)
 * Assumes up to 10+ qubits, using 2-column × N-row scrollable layout
 --------------------------------------------------------------------
-Author : (Author Name)
-Date   : 2025‑06‑22
 """
 import dash
 from dash import dcc, html, Input, Output, State, MATCH
@@ -186,7 +184,10 @@ def create_prabi_plot(data, var_key):
         template="dashboard_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
                     xanchor="right", x=1),
-        coloraxis=dict(colorbar=dict(title=var_key)),
+        coloraxis=dict(
+                colorbar=dict(title=var_key),
+                colorscale="Viridis"  
+    ),
     )
     return fig
 
