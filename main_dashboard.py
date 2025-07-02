@@ -224,6 +224,52 @@ app.layout = dbc.Container(
 
         dbc.Row(dbc.Col(html.Div(id="alert-container")), className="mb-3"),
 
+        dbc.Card([
+            dbc.CardHeader([
+                dbc.Button(
+                    [
+                        html.I(className="fas fa-chevron-down me-2", id="debug-chevron"),
+                        "🔍 DB Monitoring Info"
+                    ],
+                    id="debug-toggle-button",
+                    color="warning",
+                    outline=True,
+                    size="sm",
+                    style={"width": "100%", "textAlign": "left"}
+                )
+            ]),
+            dbc.Collapse(
+                dbc.CardBody([
+                    html.P([
+                        html.Strong("Current Working Directory: "), 
+                        html.Code(os.getcwd())
+                    ]),
+                    html.P([
+                        html.Strong("BASE Path: "), 
+                        html.Code(BASE)
+                    ]),
+                    html.P([
+                        html.Strong("EXPERIMENT_BASE_PATH: "), 
+                        html.Code(EXPERIMENT_BASE_PATH)
+                    ]),
+                    html.P([
+                        html.Strong("Path Exists: "), 
+                        html.Code(str(os.path.exists(EXPERIMENT_BASE_PATH)))
+                    ]),
+                    html.P([
+                        html.Strong("Directory Contents: "), 
+                        html.Code(str(os.listdir(EXPERIMENT_BASE_PATH) if os.path.exists(EXPERIMENT_BASE_PATH) else "Path not found"))
+                    ]),
+                    html.P([
+                        html.Strong("Environment Variable: "), 
+                        html.Code(os.environ.get("EXPERIMENT_BASE_PATH", "Not set"))
+                    ]),
+                ]),
+                id="debug-collapse",
+                is_open=False, 
+            )
+        ], className="mb-4"),
+
         dbc.Card(
             dbc.CardBody(
                 [
@@ -283,6 +329,19 @@ def poll_folder(_, cur):
                 )
                 break
     return alert, new
+
+@app.callback(
+    [Output("debug-collapse", "is_open"),
+     Output("debug-chevron", "className")],
+    Input("debug-toggle-button", "n_clicks"),
+    State("debug-collapse", "is_open"),
+)
+def toggle_debug_info(n_clicks, is_open):
+    if n_clicks:
+        is_open = not is_open
+    
+    chevron_class = "fas fa-chevron-up me-2" if is_open else "fas fa-chevron-down me-2"
+    return is_open, chevron_class
 
 
 @app.callback(
