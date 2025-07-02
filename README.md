@@ -1,6 +1,6 @@
 # QUAlibrate Dashboard
 
-A **Dash + Plotly** web application for **QUAlibration Experimental Data**.
+A **Dash + Plotly** web application for **QUAlibration Experiment Data**.
 It lets you explore relevant experiments from one browser tab.
 
 ---
@@ -46,13 +46,13 @@ pip install -r requirements.txt
 3. **Point** the app at your experiment archive
 
    - **Default base folder**  
-     The app looks in `../QPU_project` (relative to `main_dashboard.py`) by default:
+     The app looks in `[Project_Folder_Path]`. The following is the path in this current repo:
 
      ```python
-     EXPERIMENT_BASE_PATH = "../QPU_project"
+     EXPERIMENT_BASE_PATH = os.environ.get("EXPERIMENT_BASE_PATH", os.path.join(BASE, "data/QPU_Project"))
      ```
 
-   - **To change it**, simply edit that line in `main_dashboard.py` to your desired path.
+   - **To change it**, simply edit "data/QPU_Project" to your desired data folder path.
 
    - **Data folder structure**  
      Your calibration data must live under `EXPERIMENT_BASE_PATH` with this layout:
@@ -60,21 +60,20 @@ pip install -r requirements.txt
      ```text
      EXPERIMENT_BASE_PATH/
      ├─ 2025-06-23/                     # date folder: YYYY-MM-DD
-     │   ├─ #1093_00_hello_qua_112953/  # experiment folder: #<runID>_<type>_<timestamp>
+     │   ├─ #1094_01b_time_of_flight/  # experiment folder: #<runID>_<type>_<timestamp>
      │   │   ├─ ds_raw.h5
      │   │   ├─ ds_fit.h5
      │   │   ├─ data.json
      │   │   └─ node.json
-     │   ├─ #1094_01b_time_of_flight…/
      │   ├─ #1095_01b_time_of_flight…/
      │   └─ … (other experiments)
      ├─ 2025-06-24/
-     │   └─ #1100_readout_frequency_…/
+     │   └─ #1100_resonator_spectroscopy_…/
      └─ 2025-06-25 ...
      ```
 
      - **Date folders** (`YYYY-MM-DD`) group all runs from that day.  
-     - **Experiment folders** must contain exactly four files:
+     - **Experiment folders** must contain exactly four files (as saved by QUAlibrate):
        1. `ds_raw.h5`  
        2. `ds_fit.h5`  
        3. `data.json`  
@@ -118,13 +117,7 @@ experiments/
 # experiments/myexperiment_dashboard.py
 import dash
 from dash import dcc, html, Input, Output, State, MATCH
-import dash_bootstrap_components as dbc
-import plotly.graph_objs as go
-import plotly.subplots as subplots
-import xarray as xr
-import numpy as np
-import json, os
-from pathlib import Path
+...
 
 # 1. ------------- Data loader ---------------------------------
 def load_myexp_data(folder: str | Path) -> dict | None:
@@ -141,14 +134,10 @@ def create_myexp_plot(data: dict, *args, **kwargs) -> go.Figure:
 
 # 3. ------------- Layout factory -------------------------------
 def create_myexp_layout(folder: str | Path):
-    uid = str(folder).replace("\\", "_").replace("/", "_").replace(":", "")
-    data = load_myexp_data(folder)
-    if not data:
-        return html.Div(dbc.Alert("Failed to load", color="danger"))
-    init_fig = create_myexp_plot(data, ...)
+    ...
+
     return html.Div([
-        dcc.Store(id={"type": "myexp-data", "index": uid},
-                  data={"folder": str(folder)}),
+        ...
         dcc.Graph(id={"type": "myexp-plot", "index": uid},
                   figure=init_fig),
         ...
@@ -213,7 +202,7 @@ def register_myexp_callbacks(app: dash.Dash):
 
 ---
 
-## 6 · FAQ
+## 6 · Additional Features
 
 * **Hot‑reloading** – Dash already reloads Python & CSS on file save when `debug=True`.
 * **Deployment** – Any WSGI container (Gunicorn/uvicorn) works.  Remember to set `debug=False` and adjust `host='0.0.0.0'`.
