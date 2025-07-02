@@ -59,13 +59,13 @@ pip install -r requirements.txt
 
      ```text
      EXPERIMENT_BASE_PATH/
-     ├─ 2025-06-23/                     # date folder: YYYY-MM-DD
+     ├─ 2025-06-23/                    # date folder: YYYY-MM-DD
      │   ├─ #1094_01b_time_of_flight/  # experiment folder: #<runID>_<type>_<timestamp>
      │   │   ├─ ds_raw.h5
      │   │   ├─ ds_fit.h5
      │   │   ├─ data.json
      │   │   └─ node.json
-     │   ├─ #1095_01b_time_of_flight…/
+     │   ├─ #1095_qubit_spectroscopy…/
      │   └─ … (other experiments)
      ├─ 2025-06-24/
      │   └─ #1100_resonator_spectroscopy_…/
