@@ -30,9 +30,11 @@ app = dash.Dash(__name__,
                 external_stylesheets=[dbc.themes.SLATE, "/assets/dark_theme.css"],
                 assets_folder="assets")
 server = app.server
-
 load_figure_template("SLATE")
-EXPERIMENT_BASE_PATH = "./data/QPU_project"
+
+import os
+BASE = os.path.abspath(os.path.dirname(__file__))
+EXPERIMENT_BASE_PATH = os.environ.get("EXPERIMENT_BASE_PATH", os.path.join(BASE, "data\QPU_project"))
 
 # Experiment type metadata ------------------------------------------------
 experiment_modules = {
