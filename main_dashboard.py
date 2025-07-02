@@ -174,6 +174,26 @@ def find_experiments(base_path: str):
         exps[typ].sort(key=lambda e: e["timestamp"], reverse=True)
     return exps
 
+def get_directory_tree(path, max_depth=3, current_depth=0):
+    if current_depth >= max_depth or not os.path.exists(path):
+        return []
+    
+    items = []
+    try:
+        for item in sorted(os.listdir(path)):
+            item_path = os.path.join(path, item)
+            if os.path.isdir(item_path):
+                items.append(f"{'  ' * current_depth}📁 {item}/")
+                if current_depth < max_depth - 1:
+                    items.extend(get_directory_tree(item_path, max_depth, current_depth + 1))
+            else:
+                items.append(f"{'  ' * current_depth}📄 {item}")
+    except PermissionError:
+        items.append(f"{'  ' * current_depth}❌ Permission denied")
+    except Exception as e:
+        items.append(f"{'  ' * current_depth}❌ Error: {str(e)}")
+    
+    return items
 
 # ────────────────────────────────────────────────────────────────────
 # 2. Layout
@@ -225,49 +245,92 @@ app.layout = dbc.Container(
         dbc.Row(dbc.Col(html.Div(id="alert-container")), className="mb-3"),
 
         dbc.Card([
-            dbc.CardHeader([
-                dbc.Button(
-                    [
-                        html.I(className="fas fa-chevron-down me-2", id="debug-chevron"),
-                        "🔍 DB Monitoring Info"
-                    ],
-                    id="debug-toggle-button",
-                    color="warning",
-                    outline=True,
-                    size="sm",
-                    style={"width": "100%", "textAlign": "left"}
-                )
-            ]),
-            dbc.Collapse(
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Button(
+                            "🔍 Debug Information",
+                            id="debug-toggle-button",
+                            color="warning",
+                            outline=True,
+                            size="sm"
+                        )
+                    ], width="auto"),
+                ], justify="start", className="mb-3"),  # 버튼 아래 여백 추가
+            ], style={"paddingBottom": "0"}),  # 아래 패딩 제거
+            dbc.Collapse([
                 dbc.CardBody([
+                    html.H6("📍 Path Information", className="text-info"),
                     html.P([
                         html.Strong("Current Working Directory: "), 
-                        html.Code(os.getcwd())
+                        html.Code(os.getcwd(), style={"color": "#a8e6cf", "backgroundColor": "#2d2d2d"})
                     ]),
                     html.P([
                         html.Strong("BASE Path: "), 
-                        html.Code(BASE)
+                        html.Code(BASE, style={"color": "#a8e6cf", "backgroundColor": "#2d2d2d"})
                     ]),
                     html.P([
                         html.Strong("EXPERIMENT_BASE_PATH: "), 
-                        html.Code(EXPERIMENT_BASE_PATH)
+                        html.Code(EXPERIMENT_BASE_PATH, style={"color": "#a8e6cf", "backgroundColor": "#2d2d2d"})
                     ]),
                     html.P([
                         html.Strong("Path Exists: "), 
-                        html.Code(str(os.path.exists(EXPERIMENT_BASE_PATH)))
-                    ]),
-                    html.P([
-                        html.Strong("Directory Contents: "), 
-                        html.Code(str(os.listdir(EXPERIMENT_BASE_PATH) if os.path.exists(EXPERIMENT_BASE_PATH) else "Path not found"))
+                        html.Code(str(os.path.exists(EXPERIMENT_BASE_PATH)), style={"color": "#a8e6cf", "backgroundColor": "#2d2d2d"})
                     ]),
                     html.P([
                         html.Strong("Environment Variable: "), 
-                        html.Code(os.environ.get("EXPERIMENT_BASE_PATH", "Not set"))
+                        html.Code(os.environ.get("EXPERIMENT_BASE_PATH", "Not set"), style={"color": "#a8e6cf", "backgroundColor": "#2d2d2d"})
                     ]),
-                ]),
-                id="debug-collapse",
-                is_open=False, 
-            )
+                    html.Hr(),
+                    
+                    html.H6("📂 Directory Explorer", className="text-info"),
+                    dbc.Button(
+                        "🔍 Explore Root Directory",
+                        id="explore-root-button",
+                        color="info",
+                        outline=True,
+                        size="sm",
+                        className="mb-2"
+                    ),
+                    dbc.Collapse([
+                        html.Pre(
+                            "\n".join(get_directory_tree(BASE, max_depth=4)),
+                            style={
+                                "backgroundColor": "#1e1e1e",
+                                "color": "#ffffff",
+                                "padding": "10px",
+                                "borderRadius": "5px",
+                                "fontSize": "12px",
+                                "maxHeight": "300px",
+                                "overflowY": "auto"
+                            }
+                        )
+                    ], id="root-explore-collapse", is_open=False),
+                    
+                    dbc.Button(
+                        "🔍 Explore Data Directory",
+                        id="explore-data-button",
+                        color="success",
+                        outline=True,
+                        size="sm",
+                        className="mb-2"
+                    ),
+                    dbc.Collapse([
+                        html.Pre(
+                            "\n".join(get_directory_tree(os.path.join(BASE, "data"), max_depth=4)) if os.path.exists(os.path.join(BASE, "data")) else "❌ Data directory not found",
+                            style={
+                                "backgroundColor": "#1e1e1e",
+                                "color": "#ffffff",
+                                "padding": "10px",
+                                "borderRadius": "5px",
+                                "fontSize": "12px",
+                                "maxHeight": "300px",
+                                "overflowY": "auto"
+                            }
+                        )
+                    ], id="data-explore-collapse", is_open=False),
+                ])
+            ], id="debug-collapse", is_open=False)
         ], className="mb-4"),
 
         dbc.Card(
@@ -331,18 +394,34 @@ def poll_folder(_, cur):
     return alert, new
 
 @app.callback(
-    [Output("debug-collapse", "is_open"),
-     Output("debug-chevron", "className")],
+    Output("debug-collapse", "is_open"),
     Input("debug-toggle-button", "n_clicks"),
     State("debug-collapse", "is_open"),
 )
 def toggle_debug_info(n_clicks, is_open):
     if n_clicks:
-        is_open = not is_open
-    
-    chevron_class = "fas fa-chevron-up me-2" if is_open else "fas fa-chevron-down me-2"
-    return is_open, chevron_class
+        return not is_open
+    return is_open
 
+@app.callback(
+    Output("root-explore-collapse", "is_open"),
+    Input("explore-root-button", "n_clicks"),
+    State("root-explore-collapse", "is_open"),
+)
+def toggle_root_explore(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("data-explore-collapse", "is_open"),
+    Input("explore-data-button", "n_clicks"),
+    State("data-explore-collapse", "is_open"),
+)
+def toggle_data_explore(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
 
 @app.callback(
     [Output("experiment-type-dropdown", "options"),
